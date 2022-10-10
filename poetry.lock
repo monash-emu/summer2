@@ -227,7 +227,7 @@ test = ["flake8 (==3.7.8)", "hypothesis (==3.55.3)"]
 
 [[package]]
 name = "computegraph"
-version = "0.3.0b0"
+version = "0.3.6"
 description = "computegraph is a tool for managing computational graphs using networkx"
 category = "main"
 optional = false
@@ -237,6 +237,7 @@ python-versions = ">=3.7.0,<3.11"
 jax = {version = ">=0.3.14,<0.4.0", extras = ["cpu"], markers = "sys_platform == \"linux\" or sys_platform == \"darwin\""}
 networkx = ">=2.6.2"
 numpy = ">=1.20.3"
+scipy = ">=1.7.3"
 
 [package.extras]
 plotting = ["matplotlib (>=3.5.1)", "plotly (>=5.6.0)", "pygraphviz (>=1.8)"]
@@ -1086,6 +1087,17 @@ docs = ["furo (>=2021.7.5b38)", "proselint (>=0.10.2)", "sphinx (>=4)", "sphinx-
 test = ["appdirs (==1.4.4)", "pytest (>=6)", "pytest-cov (>=2.7)", "pytest-mock (>=3.6)"]
 
 [[package]]
+name = "plotly"
+version = "5.10.0"
+description = "An open-source, interactive data visualization library for Python"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+tenacity = ">=6.2.0"
+
+[[package]]
 name = "pluggy"
 version = "1.0.0"
 description = "plugin and hook calling mechanisms for python"
@@ -1637,6 +1649,17 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
+name = "tenacity"
+version = "8.1.0"
+description = "Retry code until it succeeds"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.extras]
+doc = ["reno", "sphinx", "tornado (>=4.5)"]
+
+[[package]]
 name = "terminado"
 version = "0.15.0"
 description = "Tornado websocket backend for the Xterm.js Javascript terminal emulator library."
@@ -1788,7 +1811,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7.1,<3.11"
-content-hash = "ddae3bd1209482cf1ca8b4de41a6fe0b350a24cd57355c2a807920518301d28c"
+content-hash = "a5cab7a555a18879026b3dedc208b93258d9189d6e912a5e35499df32eae07d1"
 
 [metadata.files]
 absl-py = [
@@ -1951,8 +1974,8 @@ commonmark = [
     {file = "commonmark-0.9.1.tar.gz", hash = "sha256:452f9dc859be7f06631ddcb328b6919c67984aca654e5fefb3914d54691aed60"},
 ]
 computegraph = [
-    {file = "computegraph-0.3.0b0-py3-none-any.whl", hash = "sha256:ff08056aaea88fdcf63eb565a8bdb5e34785263058955f5ab50edbb46bbba4f1"},
-    {file = "computegraph-0.3.0b0.tar.gz", hash = "sha256:3148bea6d94c6def716e1b77eb7771c0360b0171191180071310691678850afb"},
+    {file = "computegraph-0.3.6-py3-none-any.whl", hash = "sha256:7d3a9ddbc0f1b6bc6f4a4c0c07a74ba5a30e56a3558283fc02f8a45f214ad023"},
+    {file = "computegraph-0.3.6.tar.gz", hash = "sha256:5d901863774131477df05499cd6bbd168a8b921720c13423eba4adcc157f435e"},
 ]
 cycler = [
     {file = "cycler-0.11.0-py3-none-any.whl", hash = "sha256:3a27e95f763a428a739d2add979fa7494c912a32c17c4c38c4d5f082cad165a3"},
@@ -2535,6 +2558,10 @@ platformdirs = [
     {file = "platformdirs-2.5.2-py3-none-any.whl", hash = "sha256:027d8e83a2d7de06bbac4e5ef7e023c02b863d7ea5d079477e722bb41ab25788"},
     {file = "platformdirs-2.5.2.tar.gz", hash = "sha256:58c8abb07dcb441e6ee4b11d8df0ac856038f944ab98b7be6b27b2a3c7feef19"},
 ]
+plotly = [
+    {file = "plotly-5.10.0-py2.py3-none-any.whl", hash = "sha256:989b13825cc974390aa0169479485d9257d37848a47bc63957251f8e1a7046ba"},
+    {file = "plotly-5.10.0.tar.gz", hash = "sha256:4d36d9859b7a153b273562deeed8c292587a472eb1fd57cd4158ec89d9defadb"},
+]
 pluggy = [
     {file = "pluggy-1.0.0-py2.py3-none-any.whl", hash = "sha256:74134bbf457f031a36d68416e1509f34bd5ccc019f0bcc952c7b909d06b37bd3"},
     {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
@@ -2978,6 +3005,10 @@ sphinxcontrib-serializinghtml = [
 tblib = [
     {file = "tblib-1.7.0-py2.py3-none-any.whl", hash = "sha256:289fa7359e580950e7d9743eab36b0691f0310fce64dee7d9c31065b8f723e23"},
     {file = "tblib-1.7.0.tar.gz", hash = "sha256:059bd77306ea7b419d4f76016aef6d7027cc8a0785579b5aad198803435f882c"},
+]
+tenacity = [
+    {file = "tenacity-8.1.0-py3-none-any.whl", hash = "sha256:35525cd47f82830069f0d6b73f7eb83bc5b73ee2fff0437952cedf98b27653ac"},
+    {file = "tenacity-8.1.0.tar.gz", hash = "sha256:e48c437fdf9340f5666b92cd7990e96bc5fc955e1298baf4a907e3972067a445"},
 ]
 terminado = [
     {file = "terminado-0.15.0-py3-none-any.whl", hash = "sha256:0d5f126fbfdb5887b25ae7d9d07b0d716b1cc0ccaacc71c1f3c14d228e065197"},
