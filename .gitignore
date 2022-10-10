@@ -1,0 +1,15 @@
+# Python
+**/*.pyc
+.pytest_cache/
+.venv/
+
+# Package publishing
+dist/
+
+# Doc publishing
+_build/
+
+# IDE stuff
+.ipynb_checkpoints/
+.vscode
+.vs
