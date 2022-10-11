@@ -57,13 +57,13 @@ def query_flows(
 ):
     if flow_name is not None:
         if isinstance(flow_name, re.Pattern):
-            flows = [f for f in m._flows if flow_name.match(f.name)]
+            flows = [f for f in m.flows if flow_name.match(f.name)]
         elif isinstance(flow_name, str):
-            flows = [f for f in m._flows if flow_name == f.name]
+            flows = [f for f in m.flows if flow_name == f.name]
         else:
             flows = flow_name
     else:
-        flows = m._flows
+        flows = m.flows
 
     if source:
         if "name" in source:
@@ -103,7 +103,7 @@ def flows_to_compartments(m: CompartmentalModel, flows: Iterable[BaseFlow]):
 
 def build_compartment_flow_map(m: CompartmentalModel):
     out_map = {c: set() for c in m.compartments}
-    for f in m._flows:
+    for f in m.flows:
         if f.source:
             out_map[f.source].add(f)
         if f.dest:

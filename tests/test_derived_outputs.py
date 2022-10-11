@@ -14,6 +14,7 @@ def test_no_derived_outputs(backend):
     assert model.outputs.shape == (6, 3)
     assert model.derived_outputs == {}
 
+
 def get_base_model():
     model = CompartmentalModel(
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
@@ -145,7 +146,7 @@ def test_derived_outputs_with_no_save_results(backend):
     )
 
     # Override outputs so the test is easier to write
-    model.run(solver="euler",jit=False)
+    model.run(solver="euler", jit=False)
     dos = model.derived_outputs
 
     assert_array_equal(dos["final_aggregate"][1:], np.array([12, 27, 47, 72, 102]))
@@ -166,7 +167,7 @@ def test_derived_outputs_whitelist(backend):
 
     model.set_derived_outputs_whitelist(["recovered", "accum_infected"])
 
-    model.run(solver="euler",jit=False)
+    model.run(solver="euler", jit=False)
     dos = model.derived_outputs
     assert "recovered" in dos  # Included coz in whitelist (or dependency of)
     assert "accum_infected" in dos  # Included coz in whitelist (or dependency of)

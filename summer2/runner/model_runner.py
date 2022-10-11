@@ -10,6 +10,7 @@ import summer2.flows as flows
 from summer2.population import get_rebalanced_population
 from summer2.utils import clean_compartment_values
 
+
 class ModelBackend:
     """
     An optimized, but less accessible model runner.
@@ -27,7 +28,7 @@ class ModelBackend:
 
     def prepare_structural(self):
         # FIXME: Redundant
-        self._iter_non_function_flows = [(i, f) for i, f in enumerate(self.model._flows)]
+        self._iter_non_function_flows = [(i, f) for i, f in enumerate(self.model.flows)]
 
         self._build_compartment_category_map()
 
@@ -284,7 +285,7 @@ class ModelBackend:
     def get_flow_weights(self):
         """Collate weights for all model flows at the current timestep"""
 
-        flow_weights = jnp.zeros(len(self.model._flows))
+        flow_weights = jnp.zeros(len(self.model.flows))
 
         for k, v in self.model._flow_key_map.items():
             flow_weights = flow_weights.at[v].set(self._graph_values_timestep[k])
@@ -310,7 +311,7 @@ class ModelBackend:
 
         multipliers = np.empty(len(self.infectious_flow_indices))
         for i, idx in enumerate(self.infectious_flow_indices):
-            f = self.model._flows[idx]
+            f = self.model.flows[idx]
             multipliers[i] = f.find_infectious_multiplier(f.source, f.dest)
         return multipliers
 
@@ -328,7 +329,7 @@ class ModelBackend:
         has_dens = False
 
         for i, idx in enumerate(self.infectious_flow_indices):
-            f = self.model._flows[idx]
+            f = self.model.flows[idx]
             if isinstance(f, flows.InfectionFrequencyFlow):
                 has_freq = True
             elif isinstance(f, flows.InfectionDensityFlow):
@@ -408,8 +409,6 @@ class ModelBackend:
             strain_category_indexer = self._strain_category_indexers[strain]
 
             strain_infectious_values = compartment_values[strain_infectious_idx]
-
-            
 
             infection_density, infection_frequency = get_strain_infection_values(
                 strain_infectious_values,

@@ -1,7 +1,7 @@
 stratification
 =============================
 
-.. automodule:: summer.stratification
+.. automodule:: summer2.stratification
    :members:
    :undoc-members:
    :show-inheritance:

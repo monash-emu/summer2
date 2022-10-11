@@ -29,8 +29,8 @@ def test_stratify_entry_flows__with_no_explicit_adjustments():
     model.add_importation_flow("imports", 10, "S", split_imports=False)
 
     expected_flows = [ImportFlow("imports", C("S"), 10)]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     strat = Stratification("location", ["urban", "rural"], ["S", "I", "R"])
     model.stratify_with(strat)
@@ -39,8 +39,8 @@ def test_stratify_entry_flows__with_no_explicit_adjustments():
         ImportFlow("imports", C("S", {"location": "urban"}), 10, [Multiply(0.5)]),
         ImportFlow("imports", C("S", {"location": "rural"}), 10, [Multiply(0.5)]),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     strat = Stratification("age", ["young", "old"], ["S", "I", "R"])
     model.stratify_with(strat)
@@ -70,8 +70,8 @@ def test_stratify_entry_flows__with_no_explicit_adjustments():
             [Multiply(0.5), Multiply(0.5)],
         ),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify_entry_flows__with_split_imports():
@@ -101,8 +101,8 @@ def test_stratify_entry_flows__with_split_imports():
             [Multiply(0.5)],
         ),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     strat = Stratification("location", ["urban", "rural"], ["S", "I", "R"])
     strat.set_flow_adjustments("imports", {"urban": None, "rural": Multiply(0.7)})
@@ -134,8 +134,8 @@ def test_stratify_entry_flows__with_split_imports():
             [Multiply(0.5), Multiply(0.7)],
         ),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify_entry_flows__with_explicit_adjustments():
@@ -148,8 +148,8 @@ def test_stratify_entry_flows__with_explicit_adjustments():
     model.add_importation_flow("imports", 10, "S", split_imports=False)
 
     expected_flows = [ImportFlow("imports", C("S"), 10)]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     strat = Stratification("location", ["urban", "rural"], ["S", "I", "R"])
     strat.set_flow_adjustments("imports", {"urban": Multiply(0.9), "rural": None})
@@ -169,8 +169,8 @@ def test_stratify_entry_flows__with_explicit_adjustments():
             [],
         ),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     strat = Stratification("age", ["young", "old"], ["S", "I", "R"])
     strat.set_flow_adjustments("imports", {"young": Multiply(0.8), "old": Overwrite(1)})
@@ -201,8 +201,8 @@ def test_stratify_entry_flows__with_explicit_adjustments():
             [Overwrite(1)],
         ),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_add_entry_flows_post_stratification():
@@ -213,7 +213,7 @@ def test_add_entry_flows_post_stratification():
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
 
-    assert len(model._flows) == 0
+    assert len(model.flows) == 0
 
     strat = Stratification("location", ["urban", "rural"], ["S", "I", "R"])
     model.stratify_with(strat)
@@ -221,16 +221,16 @@ def test_add_entry_flows_post_stratification():
     with pytest.raises(AssertionError):
         model.add_importation_flow("imports", 10, "S", split_imports=False, expected_flow_count=1)
 
-    assert len(model._flows) == 0
+    assert len(model.flows) == 0
     model.add_importation_flow("imports", 10, "S", split_imports=False, expected_flow_count=2)
-    assert len(model._flows) == 2
+    assert len(model.flows) == 2
 
     expected_flows = [
         ImportFlow("imports", C("S", {"location": "urban"}), 10, []),
         ImportFlow("imports", C("S", {"location": "rural"}), 10, []),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_add_entry_flows_post_stratification__with_filter():
@@ -241,12 +241,12 @@ def test_add_entry_flows_post_stratification__with_filter():
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
 
-    assert len(model._flows) == 0
+    assert len(model.flows) == 0
 
     strat = Stratification("location", ["urban", "rural"], ["S", "I", "R"])
     model.stratify_with(strat)
 
-    assert len(model._flows) == 0
+    assert len(model.flows) == 0
     model.add_importation_flow(
         "imports",
         10,
@@ -255,12 +255,12 @@ def test_add_entry_flows_post_stratification__with_filter():
         split_imports=False,
         expected_flow_count=1,
     )
-    assert len(model._flows) == 1
+    assert len(model.flows) == 1
     expected_flows = [
         ImportFlow("imports", C("S", {"location": "urban"}), 10, []),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify__age__validate_ageing_flows_added():
@@ -271,9 +271,9 @@ def test_stratify__age__validate_ageing_flows_added():
     model = CompartmentalModel(
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
-    assert len(model._flows) == 0
+    assert len(model.flows) == 0
     model.add_crude_birth_flow("births", 0.02, "S")
-    assert len(model._flows) == 1
+    assert len(model.flows) == 1
 
     strat = AgeStratification("age", ["0", "5", "15"], ["S", "I", "R"])
     model.stratify_with(strat)
@@ -300,8 +300,8 @@ def test_stratify__age__validate_ageing_flows_added():
             "ageing_RXage_5_to_RXage_15", C("R", {"age": "5"}), C("R", {"age": "15"}), 0.1
         ),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify__age__validate_ageing_flows_added_second():
@@ -312,9 +312,9 @@ def test_stratify__age__validate_ageing_flows_added_second():
     model = CompartmentalModel(
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
-    assert len(model._flows) == 0
+    assert len(model.flows) == 0
     model.add_crude_birth_flow("births", 0.02, "S")
-    assert len(model._flows) == 1
+    assert len(model.flows) == 1
 
     strat = Stratification("location", ["urban", "rural"], ["S", "I", "R"])
     model.stratify_with(strat)
@@ -399,8 +399,8 @@ def test_stratify__age__validate_ageing_flows_added_second():
             0.1,
         ),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify_exit_flows():
@@ -421,8 +421,8 @@ def test_stratify_exit_flows():
         DeathFlow("d_I", C("I"), 5),
         DeathFlow("d_R", C("R"), 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     # Apply partial stratification
     strat = Stratification("location", ["urban", "rural"], ["S", "I"])
@@ -435,8 +435,8 @@ def test_stratify_exit_flows():
         DeathFlow("d_I", C("I", {"location": "rural"}), 5),
         DeathFlow("d_R", C("R"), 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     # Apply partial stratification with flow adjustments
     strat = Stratification("age", ["young", "old"], ["I", "R"])
@@ -454,8 +454,8 @@ def test_stratify_exit_flows():
         DeathFlow("d_R", C("R", {"age": "young"}), 7, [Multiply(0.5)]),
         DeathFlow("d_R", C("R", {"age": "old"}), 7, [Multiply(2)]),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_add_exit_flows_post_stratification():
@@ -465,12 +465,12 @@ def test_add_exit_flows_post_stratification():
     model = CompartmentalModel(
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
-    assert len(model._flows) == 0
+    assert len(model.flows) == 0
 
     # Apply partial stratification
     strat = Stratification("location", ["urban", "rural"], ["S", "I"])
     model.stratify_with(strat)
-    assert len(model._flows) == 0
+    assert len(model.flows) == 0
 
     model.add_death_flow("d_S", 3, "S")
     model.add_death_flow("d_I", 5, "I")
@@ -483,8 +483,8 @@ def test_add_exit_flows_post_stratification():
         DeathFlow("d_I", C("I", {"location": "rural"}), 5),
         DeathFlow("d_R", C("R"), 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_add_exit_flows_post_stratification__with_filter():
@@ -494,12 +494,12 @@ def test_add_exit_flows_post_stratification__with_filter():
     model = CompartmentalModel(
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
-    assert len(model._flows) == 0
+    assert len(model.flows) == 0
 
     # Apply partial stratification
     strat = Stratification("location", ["urban", "rural"], ["S", "I"])
     model.stratify_with(strat)
-    assert len(model._flows) == 0
+    assert len(model.flows) == 0
 
     model.add_death_flow("d_S", 3, "S", source_strata={"location": "rural"}, expected_flow_count=1)
     model.add_death_flow("d_I", 5, "I", source_strata={"location": "rural"}, expected_flow_count=1)
@@ -511,8 +511,8 @@ def test_add_exit_flows_post_stratification__with_filter():
         DeathFlow("d_S", C("S", {"location": "rural"}), 3),
         DeathFlow("d_I", C("I", {"location": "rural"}), 5),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify_transition_flows__with_source_and_dest_stratified():
@@ -531,8 +531,8 @@ def test_stratify_transition_flows__with_source_and_dest_stratified():
         ),
         TransitionFlow("recovery", C("I"), C("R"), 1 / 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     # Apply stratification
     strat = Stratification("location", ["urban", "rural"], ["S", "I", "R"])
@@ -560,8 +560,8 @@ def test_stratify_transition_flows__with_source_and_dest_stratified():
             "recovery", C("I", {"location": "rural"}), C("R", {"location": "rural"}), 1 / 7
         ),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify_transition_flows__with_source_only_stratified():
@@ -576,8 +576,8 @@ def test_stratify_transition_flows__with_source_only_stratified():
     expected_flows = [
         TransitionFlow("recovery", C("I"), C("R"), 1 / 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     # Apply stratification
     strat = Stratification("location", ["urban", "rural"], ["S", "I"])
@@ -587,8 +587,8 @@ def test_stratify_transition_flows__with_source_only_stratified():
         TransitionFlow("recovery", C("I", {"location": "urban"}), C("R"), 1 / 7),
         TransitionFlow("recovery", C("I", {"location": "rural"}), C("R"), 1 / 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify_transition_flows__with_dest_only_stratified():
@@ -604,8 +604,8 @@ def test_stratify_transition_flows__with_dest_only_stratified():
     expected_flows = [
         TransitionFlow("recovery", C("I"), C("R"), 1 / 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     # Apply stratification
     strat = Stratification("location", ["urban", "rural"], ["R"])
@@ -615,8 +615,8 @@ def test_stratify_transition_flows__with_dest_only_stratified():
         TransitionFlow("recovery", C("I"), C("R", {"location": "urban"}), 1 / 7, [Multiply(0.5)]),
         TransitionFlow("recovery", C("I"), C("R", {"location": "rural"}), 1 / 7, [Multiply(0.5)]),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify_transition_flows__with_dest_only_stratified__with_adjustments():
@@ -632,8 +632,8 @@ def test_stratify_transition_flows__with_dest_only_stratified__with_adjustments(
     expected_flows = [
         TransitionFlow("recovery", C("I"), C("R"), 1 / 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     # Apply stratification
     strat = Stratification("location", ["urban", "rural"], ["R"])
@@ -644,8 +644,8 @@ def test_stratify_transition_flows__with_dest_only_stratified__with_adjustments(
         TransitionFlow("recovery", C("I"), C("R", {"location": "urban"}), 1 / 7, [Overwrite(0.7)]),
         TransitionFlow("recovery", C("I"), C("R", {"location": "rural"}), 1 / 7, [Overwrite(0.1)]),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify_transition_flows__with_dest_only_stratified__with_strains():
@@ -661,8 +661,8 @@ def test_stratify_transition_flows__with_dest_only_stratified__with_strains():
     expected_flows = [
         TransitionFlow("recovery", C("I"), C("R"), 1 / 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     # Apply stratification
     strat = StrainStratification("location", ["urban", "rural"], ["R"])
@@ -673,8 +673,8 @@ def test_stratify_transition_flows__with_dest_only_stratified__with_strains():
         TransitionFlow("recovery", C("I"), C("R", {"location": "urban"}), 1 / 7),
         TransitionFlow("recovery", C("I"), C("R", {"location": "rural"}), 1 / 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
 
 def test_stratify_transition_flows__with_dest_only_stratified__with_adjustments_and_strains():
@@ -690,8 +690,8 @@ def test_stratify_transition_flows__with_dest_only_stratified__with_adjustments_
     expected_flows = [
         TransitionFlow("recovery", C("I"), C("R"), 1 / 7),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])
 
     # Apply stratification
     strat = StrainStratification("location", ["urban", "rural"], ["R"])
@@ -702,5 +702,5 @@ def test_stratify_transition_flows__with_dest_only_stratified__with_adjustments_
         TransitionFlow("recovery", C("I"), C("R", {"location": "urban"}), 1 / 7, [Overwrite(0.7)]),
         TransitionFlow("recovery", C("I"), C("R", {"location": "rural"}), 1 / 7, [Overwrite(0.1)]),
     ]
-    assert len(expected_flows) == len(model._flows)
-    assert all([a._is_equal(e) for e, a in zip(expected_flows, model._flows)])
+    assert len(expected_flows) == len(model.flows)
+    assert all([a._is_equal(e) for e, a in zip(expected_flows, model.flows)])

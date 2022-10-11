@@ -21,24 +21,24 @@ class SolverType:
     RUNGE_KUTTA = "rk4"
     STOCHASTIC = "stochastic"
 
+
 class SolverArgs:
     """
     Options for ODE solver used by model
     """
 
-    DEFAULT =  {
-                "rtol": 1.4e-4,
-                "atol": 1.4e-4,
-            }
+    DEFAULT = {
+        "rtol": 1.4e-4,
+        "atol": 1.4e-4,
+    }
     PRECISE = {
-                "rtol": 1.4e-8,
-                "atol": 1.4e-8,
-            }
-    FAST =  {
-                "rtol": 1.4e-3,
-                "atol": 1.4e-3,
-            }
-
+        "rtol": 1.4e-8,
+        "atol": 1.4e-8,
+    }
+    FAST = {
+        "rtol": 1.4e-3,
+        "atol": 1.4e-3,
+    }
 
 
 def solve_ode(

@@ -14,14 +14,14 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
-sys.path.insert(0, os.path.abspath("../summer"))
+sys.path.insert(0, os.path.abspath("../summer2"))
 
 
 # -- Project information -----------------------------------------------------
 
 project = "Summer"
 copyright = "2020, James Trauer"
-author = "James Trauer, Matthew Segal"
+author = "James Trauer, David Shipman, Matthew Segal"
 
 
 # -- General configuration ---------------------------------------------------

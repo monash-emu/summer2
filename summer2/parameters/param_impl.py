@@ -144,7 +144,7 @@ def map_flow_keys(m: CompartmentalModel) -> dict:
 
     realised_flows = {}
 
-    for i, f in enumerate(m._flows):
+    for i, f in enumerate(m.flows):
         full_flow = [f.param.obj]
         for a in f.adjustments:
             if isinstance(a, Overwrite):
@@ -157,6 +157,7 @@ def map_flow_keys(m: CompartmentalModel) -> dict:
         realised_flows[i] = GraphObjectParameter(out_func)
 
     return realised_flows
+
 
 def register_object_key(obj_table, obj, base_name, unique=False):
     if isinstance(obj, dict):
@@ -180,6 +181,7 @@ def register_object_key(obj_table, obj, base_name, unique=False):
     else:
         raise TypeError(obj, base_name)
 
+
 def finalize_parameters(model):
     """Called as part of model.finalize
     This ensures all parameters (and function calls) have concrete computegraph.Variable
@@ -195,7 +197,7 @@ def finalize_parameters(model):
     register_obj_key = partial(register_object_key, obj_table)
 
     # Flow parameters and adjustments
-    for f in model._flows:
+    for f in model.flows:
         f.param = get_modelparameter_from_param(f.param)
 
         for adj in f.adjustments:
@@ -206,7 +208,7 @@ def finalize_parameters(model):
 
     all_flow_keys = {}
 
-    for i, f in enumerate(model._flows):
+    for i, f in enumerate(model.flows):
         fpkey = register_obj_key(realised_flows[i], f"{f.name}_rate")
         f._graph_key = fpkey
         if fpkey not in all_flow_keys:

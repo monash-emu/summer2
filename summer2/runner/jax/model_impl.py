@@ -433,7 +433,7 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
         static_graph_vals = static_graph_func(parameters=parameters)
         initial_population = calc_initial_pop(static_graph_vals)
 
-        static_flow_weights = jnp.zeros(len(runner.model._flows))
+        static_flow_weights = jnp.zeros(len(runner.model.flows))
         for k, v in static_flow_map.items():
             val = static_graph_vals[k]
             static_flow_weights = static_flow_weights.at[v].set(val)
@@ -465,7 +465,7 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
         static_graph_vals = static_graph_func(parameters=parameters)
         initial_population = calc_initial_pop(static_graph_vals)
 
-        static_flow_weights = jnp.zeros(len(runner.model._flows))
+        static_flow_weights = jnp.zeros(len(runner.model.flows))
         for k, v in static_flow_map.items():
             val = static_graph_vals[k]
             static_flow_weights = static_flow_weights.at[v].set(val)

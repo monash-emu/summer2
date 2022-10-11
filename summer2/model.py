@@ -50,7 +50,7 @@ class CompartmentalModel:
     predict the future state of a disease.
 
     Args:
-        times: The start and end times. ***
+        times: The start and end times.
         compartments: The compartments to simulate.
         infectious_compartments: The compartments which are counted as infectious.
         time_step (optional): The timesteps to return results for. This request does not
@@ -118,7 +118,7 @@ class CompartmentalModel:
         self._stratifications = []
         self.stratifications = {}
         # Flows to be applied to the model compartments
-        self._flows = []
+        self.flows = []
 
         # Turn on all runtime assertions by default; can be disabled for performance reasons
         # Setting to False still retains some checking, but turns off the most costly checks
@@ -156,8 +156,6 @@ class CompartmentalModel:
         # Track the actions we take building this model
         self.tracker = ModelBuildTracker()
 
-        self._defer_actions = True
-
         self._finalized = False
         self._runner = None
         self.builder = None
@@ -172,7 +170,7 @@ class CompartmentalModel:
             c.idx = idx
             compartment_idx_lookup[c] = idx
 
-        for flow in self._flows:
+        for flow in self.flows:
             flow.update_compartment_indices(compartment_idx_lookup)
 
     def _assert_not_finalized(self):
@@ -265,7 +263,7 @@ class CompartmentalModel:
         is_already_birth_flow = any(
             [
                 type(f) is flows.CrudeBirthFlow or type(f) is flows.ReplacementBirthFlow
-                for f in self._flows
+                for f in self.flows
             ]
         )
         if is_already_birth_flow:
@@ -304,7 +302,7 @@ class CompartmentalModel:
         is_already_birth_flow = any(
             [
                 type(f) is flows.CrudeBirthFlow or type(f) is flows.ReplacementBirthFlow
-                for f in self._flows
+                for f in self.flows
             ]
         )
         if is_already_birth_flow:
@@ -385,7 +383,7 @@ class CompartmentalModel:
             new_flows.append(flow)
 
         self._validate_expected_flow_count(expected_flow_count, new_flows)
-        self._flows += new_flows
+        self.flows += new_flows
 
     def add_death_flow(
         self,
@@ -436,7 +434,7 @@ class CompartmentalModel:
         """
 
         # Only allow a single universal death flow with a given name to be added to the model.
-        is_already_used = any([f.name.startswith(base_name) for f in self._flows])
+        is_already_used = any([f.name.startswith(base_name) for f in self.flows])
         if is_already_used:
             msg = f"There is already a universal death flow called '{base_name}' in this model, \
                 cannot add a second."
@@ -475,7 +473,7 @@ class CompartmentalModel:
             new_flows.append(flow)
 
         self._validate_expected_flow_count(expected_flow_count, new_flows)
-        self._flows += new_flows
+        self.flows += new_flows
 
     def add_infection_frequency_flow(
         self,
@@ -641,7 +639,7 @@ class CompartmentalModel:
             new_flows.append(flow)
 
         self._validate_expected_flow_count(expected_flow_count, new_flows)
-        self._flows += new_flows
+        self.flows += new_flows
 
     @staticmethod
     def _validate_expected_flow_count(
@@ -712,7 +710,7 @@ class CompartmentalModel:
         strat._validate = self._should_validate
 
         # Validate flow adjustments
-        flow_names = [f.name for f in self._flows]
+        flow_names = [f.name for f in self.flows]
         for n in strat.flow_adjustments.keys():
             msg = f"Flow adjustment for '{n}' refers to a flow that is not present in the model."
             assert n in flow_names, msg
@@ -758,23 +756,15 @@ class CompartmentalModel:
         # Stratify compartments, split according to split_proportions
         prev_compartment_names = copy.copy(self.compartments)
         self.compartments = strat._stratify_compartments(self.compartments)
-        # if not self._defer_actions or self._finalized:
-        #    try:
-        #        self.initial_population = strat._stratify_compartment_values(
-        #            prev_compartment_names, self.initial_population
-        #        )
-        #    except Exception as e:
-        #        logger.critical("Parameterized models must set takes_params in constructor")
-        #        raise e
 
         # Update the cache of compartment names; these need to correct whenever we add a new flow
         self._update_compartment_name_map()
 
         # Stratify flows
-        prev_flows = self._flows
-        self._flows = []
+        prev_flows = self.flows
+        self.flows = []
         for flow in prev_flows:
-            self._flows += flow.stratify(strat)
+            self.flows += flow.stratify(strat)
 
         # Update the mapping of compartment name to idx for quicker lookups.
         self._update_compartment_indices()
@@ -1040,7 +1030,7 @@ class CompartmentalModel:
             outputs=self.outputs,
             times=self.times,
             timestep=self.timestep,
-            flows=self._flows,
+            flows=self.flows,
             compartments=self.compartments,
             get_flow_rates=self._backend.get_flow_rates,
             model=self,
@@ -1080,7 +1070,7 @@ class CompartmentalModel:
             msg = f"A derived output named {name} already exists."
             assert name not in self._derived_output_requests, msg
             is_flow_exists = any(
-                [f.is_match(flow_name, source_strata, dest_strata) for f in self._flows]
+                [f.is_match(flow_name, source_strata, dest_strata) for f in self.flows]
             )
             assert is_flow_exists, f"No flow matches: {flow_name} {source_strata} {dest_strata}"
 
@@ -1196,72 +1186,15 @@ class CompartmentalModel:
             "save_results": save_results,
         }
 
-    def request_function_output(
-        self,
-        name: str,
-        func: Callable[[np.ndarray], np.ndarray],
-        sources: List[str],
-        save_results: bool = True,
-    ):
+    def request_function_output(self, name: str, func: params.Function, save_results: bool = True):
         """
-        Adds a derived output to the model's results. The output will be the result of a function
-        which takes a list of sources as an input.
+        Request a generic Function output
 
         Args:
-            name: The name of the derived output.
-            func: A function used to calculate the derived ouput.
-            sources: The derived outputs to input into the function.
-            save_results (optional): Whether to save or discard the results.
+            name: The name of the derived output
+            func: The Function, whose args are GraphObjects
+            save_results: Whether these results should be available in the final output
 
-        Example:
-            Request a function-based derived output:
-
-                model.request_output_for_compartments(
-                    compartments=["S", "E", "I", "R"],
-                    name="total_population",
-                    save_results=False
-                )
-                model.request_output_for_compartments(
-                    compartments=["R"],
-                    name="recovered_population",
-                    save_results=False
-                )
-
-                def calculate_proportion_seropositive(recovered_pop, total_pop):
-                    return recovered_pop / total_pop
-
-                model.request_function_output(
-                    name="proportion_seropositive",
-                    func=calculate_proportion_seropositive,
-                    sources=["recovered_population", "total_population"],
-                )
-
-        """
-        msg = f"A derived output named {name} already exists."
-        assert name not in self._derived_output_requests, msg
-        for source in sources:
-            assert (
-                source in self._derived_output_requests
-            ), f"Source {source} has not been requested."
-            self._derived_output_graph.add_edge(source, name)
-
-        self._derived_output_graph.add_node(name)
-        self._derived_output_requests[name] = {
-            "request_type": DerivedOutputRequest.FUNCTION,
-            "func": func,
-            "sources": sources,
-            "save_results": save_results,
-        }
-
-    def request_param_function_output(
-        self, name: str, func: params.Function, save_results: bool = True
-    ):
-        """Request a generic Function output
-
-        Args:
-            name (str): _description_
-            func (Function): The Function, whose args are Param
-            save_results (bool, optional): _description_. Defaults to True.
         """
 
         msg = f"A derived output named {name} already exists."
@@ -1298,21 +1231,6 @@ class CompartmentalModel:
             "name": name,
             "save_results": save_results,
         }
-
-    def add_computed_value_process(self, name: str, processor):
-        """
-        Calculate (at runtime) values derived from the current compartment values and/or
-        functions/input data
-        providing time varying shared values.  The output values of these processes can be used by
-        function parameters, adjustments, and function flows.
-
-        Args:
-            name (str): Name (key) of derived value (use this when referencing it in functions)
-            processor (DerivedValueProcessor): Object providing implementation
-        """
-        # FIXME: We might actually have to keep this for now, at least until modellers get sick of
-        # seeing it and change over all the code
-        raise DeprecationWarning("Use add_computed_value_func instead")
 
     def add_computed_value_func(self, name: str, func: params.Function):
         if name in self._computed_values_graph_dict:

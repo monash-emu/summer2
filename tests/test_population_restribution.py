@@ -42,10 +42,8 @@ def test_split_single_filter():
 
     orig_init_pop = model._get_step_test()["initial_population"]
     s_young_orig = orig_init_pop[
-        model.query_compartments({"name": "S", "age": "young"},as_idx=True)
+        model.query_compartments({"name": "S", "age": "young"}, as_idx=True)
     ].copy()
-
-    
 
     model = build_model()
     model.adjust_population_split(
@@ -59,13 +57,13 @@ def test_split_single_filter():
 
     # Check we haven't changed any compartments we're not meant to
 
-    s_young_post = init_pop[model.query_compartments({"name": "S", "age": "young"},as_idx=True)]
+    s_young_post = init_pop[model.query_compartments({"name": "S", "age": "young"}, as_idx=True)]
     np.testing.assert_array_almost_equal(s_young_orig, s_young_post)
 
     # Check we got the expected rebalance values
     s_old_urban_expected = 990.0 * 0.4 * 0.8 * np.array((0.7, 0.2, 0.1))
     s_old_urban_target = init_pop[
-        model.query_compartments({"name": "S", "age": "old", "loc": "urban"},as_idx=True)
+        model.query_compartments({"name": "S", "age": "old", "loc": "urban"}, as_idx=True)
     ]
 
     np.testing.assert_array_almost_equal(s_old_urban_expected, s_old_urban_target)
@@ -77,10 +75,10 @@ def test_split_multi_filter():
     init_pop_orig = model._get_step_test()["initial_population"]
 
     s_young_orig = init_pop_orig[
-        model.query_compartments({"name": "S", "age": "young"},as_idx=True)
+        model.query_compartments({"name": "S", "age": "young"}, as_idx=True)
     ].copy()
     s_rural_orig = init_pop_orig[
-        model.query_compartments({"name": "S", "loc": "rural"},as_idx=True)
+        model.query_compartments({"name": "S", "loc": "rural"}, as_idx=True)
     ].copy()
 
     model = build_model()
@@ -94,15 +92,15 @@ def test_split_multi_filter():
 
     # Check we haven't changed any compartments we're not meant to
 
-    s_young_post = init_pop[model.query_compartments({"name": "S", "age": "young"},as_idx=True)]
-    s_rural_post = init_pop[model.query_compartments({"name": "S", "loc": "rural"},as_idx=True)]
+    s_young_post = init_pop[model.query_compartments({"name": "S", "age": "young"}, as_idx=True)]
+    s_rural_post = init_pop[model.query_compartments({"name": "S", "loc": "rural"}, as_idx=True)]
     np.testing.assert_array_almost_equal(s_young_orig, s_young_post)
     np.testing.assert_array_almost_equal(s_rural_orig, s_rural_post)
 
     # Check we got the expected rebalance values
     s_old_urban_expected = 990.0 * 0.4 * 0.8 * np.array((0.7, 0.2, 0.1))
     s_old_urban_target = init_pop[
-        model.query_compartments({"name": "S", "age": "old", "loc": "urban"},as_idx=True)
+        model.query_compartments({"name": "S", "age": "old", "loc": "urban"}, as_idx=True)
     ]
 
     np.testing.assert_array_almost_equal(s_old_urban_expected, s_old_urban_target)

@@ -29,6 +29,12 @@ jax =  [
     {extras = ["cpu"], version = "^0.3.14", platform = "linux"},
     {extras = ["cpu"], version = "^0.3.14", platform = "darwin"},
 ]
+sphinx-rtd-theme = {version = "^0.5.1", optional = true}
+recommonmark = {version = "^0.7.1", optional = true}
+nbsphinx = {version = "^0.8.2", optional = true}
+sphinxcontrib-napoleon = {version = "^0.7", optional = true}
+ipykernel  = {version = "^6.15.1", optional = true}
+matplotlib = {version = ">=3.4.3", optional = true}
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
@@ -45,6 +51,10 @@ pytest-parallel = "^0.1.0"
 pytest-benchmark = "^3.4.1"
 isort = "^5.9.3"
 pre-commit = "^2.19.0"
+
+
+[tool.poetry.extras]
+docs = ["sphinxcontrib-napoleon", "recommonmark", "nbsphinx", "sphinx_rtd_theme", "ipykernel", "matplotlib"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -126,7 +126,7 @@ def build_derived_outputs_runner(model):
         elif req_type == "param_func":
             graph_dict[name] = relabel_tree(request["func"], "derived_outputs", "graph_locals")
         elif req_type == "flow":
-            graph_dict[name] = build_flow_output(request, name, model.times, model._flows)
+            graph_dict[name] = build_flow_output(request, name, model.times, model.flows)
         elif req_type == "agg":
             graph_dict[name] = build_aggregate_output(request)
         elif req_type == "cum":

@@ -136,11 +136,7 @@ def test_apply_crude_birth_rate_flow(backend, birth_rate, exp_flow):
     model.add_crude_birth_flow("births", birth_rate, "S")
     model.run(solver="euler")
     # Expect birth_rate * total_population = exp_flow
-    expected_outputs = np.array([
-        [990,10],
-        [990+exp_flow,10]
-    ]
-    )
+    expected_outputs = np.array([[990, 10], [990 + exp_flow, 10]])
     assert_array_equal(model.outputs, expected_outputs)
 
 
@@ -156,6 +152,7 @@ def test_apply_replace_death_birth_flow(backend):
     exp_s_flow_rate = -exp_i_flow_rate  # N.B births + deaths in the S compartment should balance.
     expected_flow_rates = np.array([exp_s_flow_rate, exp_i_flow_rate])
     assert_array_equal(actual_flow_rates, expected_flow_rates)
+
 
 def test_apply_many_flows(backend):
     """
