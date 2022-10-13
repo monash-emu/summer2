@@ -3,10 +3,11 @@
 from jax import lax, numpy as jnp
 
 
-def euler(get_comp_rates, initial_population, times, model_params, model_data, timescale=1):
+def euler(get_comp_rates, initial_population, times, model_params, model_data):
 
-    times = jnp.linspace(times[0], times[-1], len(times) * timescale)
-    timestep = 1.0 / timescale
+    times = jnp.linspace(times[0], times[-1], len(times))
+
+    timestep = times[1] - times[0]
 
     out_vals = jnp.empty((len(times), len(initial_population)))
     out_vals = out_vals.at[0].set(initial_population)
@@ -34,7 +35,7 @@ def rk4(get_comp_rates, initial_population, times, model_params, model_data):
 
     # times = jnp.linspace(times[0],times[-1],len(times) * timescale)
     # timestep = 1.0/timescale
-    timestep = 1.0
+    timestep = times[1] - times[0]
 
     out_vals = jnp.empty((len(times), len(initial_population)))
     out_vals = out_vals.at[0].set(initial_population)

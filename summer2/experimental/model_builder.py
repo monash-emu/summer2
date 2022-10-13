@@ -124,13 +124,18 @@ class ModelBuilder:
         oparams = {}
         for p in iparams:
             obj = self.find_obj_from_key(p)
+            # FIXME:
+            # Fails for parameters that are not Parameters
+            # Should we return None? Have a flag for this behaviour?
             oparams[p] = obj.value
         return oparams
 
     def get_param_validators(self) -> dict:
         type_validators = {}
         for param in self.model.get_input_parameters():
-            type_validators[param] = self.find_obj_from_key(param).type_validator
+            pobj = self.find_obj_from_key(param)
+            if hasattr(pobj, "type_validator"):
+                type_validators[param] = self.find_obj_from_key(param).type_validator
 
         return type_validators
 

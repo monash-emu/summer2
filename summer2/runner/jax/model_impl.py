@@ -164,26 +164,19 @@ def build_get_flow_rates(runner, ts_graph_func):
     if infect_proc_type:
         get_infectious_multipliers = build_get_infectious_multipliers(runner)
 
-    # flow_weights_base = jnp.array(runner.flow_weights)
-
     population_idx = np.array(runner.population_idx)
-    infectious_flow_indices = np.array(runner.infectious_flow_indices)
+    infectious_flow_indices = jnp.array(runner.infectious_flow_indices)
 
     def get_flow_rates(compartment_values: jnp.array, time, static_graph_vals, model_data):
 
-        # COULD BE JITTED
         compartment_values = clean_compartments(compartment_values)
 
-        # runner._prepare_time_step(time, compartment_vals)
         sources = {
             "model_variables": {"time": time, "compartment_values": compartment_values},
             "static_inputs": static_graph_vals,
         }
 
         ts_graph_vals = ts_graph_func(**sources)
-
-        # JITTED
-        # computed_values = calc_computed_values(compartment_values, time, parameters)
 
         # JITTED
         flow_weights = get_flow_weights(ts_graph_vals, model_data["static_flow_weights"])
@@ -199,7 +192,6 @@ def build_get_flow_rates(runner, ts_graph_func):
         flow_rates = flow_weights * populations
 
         # Calculate infection flows
-        # JITTED
         if infect_proc_type:
             infect_mul = get_infectious_multipliers(
                 time,
@@ -207,8 +199,10 @@ def build_get_flow_rates(runner, ts_graph_func):
                 ts_graph_vals,
                 model_data["compartment_infectiousness"],
             )
-            flow_rates = flow_rates.at[infectious_flow_indices].mul(infect_mul)
-
+            # flow_rates = flow_rates.at[infectious_flow_indices].mul(infect_mul)
+            flow_rates = flow_rates.at[infectious_flow_indices].set(
+                flow_rates[infectious_flow_indices] * infect_mul
+            )
             # ReplacementBirthFlow depends on death flows already being calculated; update here
         if runner._has_replacement:
             # Only calculate timestep_deaths if we use replacement, it's expensive...
