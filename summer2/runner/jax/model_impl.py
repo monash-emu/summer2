@@ -6,8 +6,11 @@ This is a mess right now!
 from functools import partial
 import numpy as np
 
-from jax import jit, numpy as jnp
+from jax import lax, jit, numpy as jnp
+
 from summer2.runner.jax import ode
+
+# from jax.experimental import ode
 from summer2.runner.jax import solvers
 
 from summer2.adjust import Overwrite
@@ -363,9 +366,9 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
     get_rates = rates_funcs["get_rates"]
     get_flow_rates = rates_funcs["get_flow_rates"]
 
-    from jax import vmap
+    # from jax import vmap
 
-    get_flows_for_outputs = vmap(get_flow_rates, in_axes=(0, 0, None, None), out_axes=(0))
+    # get_flows_for_outputs = vmap(get_flow_rates, in_axes=(0, 0, None, None), out_axes=(0))
 
     def get_comp_rates(comp_vals, t, static_graph_vals, model_data):
         return get_rates(comp_vals, t, static_graph_vals, model_data)[1]
@@ -422,6 +425,8 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
 
     static_flow_map = {k: m._flow_key_map[k] for k in set(m._flow_key_map).difference(set(tv_keys))}
 
+    model_times = jnp.array(m.times)
+
     def run_model(parameters):
 
         static_graph_vals = static_graph_func(parameters=parameters)
@@ -440,7 +445,28 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
 
         outputs = get_ode_solution(initial_population, times, static_graph_vals, model_data)
 
-        out_flows, out_cv = get_flows_for_outputs(outputs, times, static_graph_vals, model_data)
+        # Empty array to kick-start flow rates from outputs
+        flow_rates_full = jnp.empty((len(m.times), len(m.flows)))
+
+        # And likewise for computed values (but as a dict)
+        cv_out = {}
+        for k in m._computed_values_graph_dict:
+            cv_out[k] = jnp.empty((len(m.times),))
+
+        def f(carry, i):
+            frate_full, cur_cv = carry
+            t = model_times[i]
+            frates, cvals = get_flow_rates(outputs[i], t, static_graph_vals, model_data)
+            frate_full = frate_full.at[i].set(frates)
+            for k, v in cvals.items():
+                cur_cv[k] = cur_cv[k].at[i].set(v)
+            return (frate_full, cur_cv), None
+
+        (out_flows, out_cv), _ = lax.scan(
+            f, (flow_rates_full, cv_out), jnp.array(range(len(m.times)))
+        )
+
+        # out_flows, out_cv = get_flows_for_outputs(outputs, times, static_graph_vals, model_data)
 
         model_variables = {"outputs": outputs, "flows": out_flows, "computed_values": out_cv}
 
@@ -455,6 +481,8 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
         }  # "model_data": model_data}
 
     def one_step(parameters: dict = None):
+        # A (hopefully) fast-compiling single euler step of the model;
+        # useful for testing and debugging
 
         static_graph_vals = static_graph_func(parameters=parameters)
         initial_population = calc_initial_pop(static_graph_vals)
@@ -480,6 +508,7 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
             "comp_rates": comp_rates,
             "initial_population": initial_population,
             "static_graph_vals": static_graph_vals,
+            "model_data": model_data,
         }  # "model_data": model_data}
 
     runner_dict = {
@@ -494,8 +523,8 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
         "timestep_cg": timestep_cg,
         "static_cg": static_cg,
         "static_graph_func": static_graph_func,
-        "one_step": one_step,
-        "derived_outputs_cg": do_cg,
+        "one_step": one_step,  # single step debugging/testing function
+        "derived_outputs_cg": do_cg,  # the computegraph used for derived outputs
     }
 
     return run_model, runner_dict
