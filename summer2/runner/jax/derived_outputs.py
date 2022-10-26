@@ -140,8 +140,10 @@ def build_derived_outputs_runner(model):
         if request["save_results"]:
             out_keys.append(name)
 
+    cg = ComputeGraph(graph_dict)
+
     if model._derived_outputs_whitelist:
         out_keys = model._derived_outputs_whitelist
+        cg = cg.filter(targets=out_keys)
 
-    cg = ComputeGraph(graph_dict)
     return cg, cg.get_callable(targets=out_keys)
