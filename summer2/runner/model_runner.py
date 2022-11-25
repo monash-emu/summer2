@@ -274,7 +274,7 @@ class ModelBackend:
 
         # Find the effective infectious population for the force of infection (FoI) calculations.
         self._mixing_matrix = mixing_matrix = self._graph_values_timestep["mixing_matrix"]
-        self._calculate_strain_infection_values(compartment_values, mixing_matrix)
+        self._get_force_of_infection_by_strain(compartment_values, mixing_matrix)
 
     def _get_mixing_matrix(self, t):
         # FIXME: Only used by tests, should never be called in real code
@@ -391,7 +391,7 @@ class ModelBackend:
         idx, strain = self._get_infection_multiplier_indices(source, dest)
         return self._infection_density[strain][idx]
 
-    def _calculate_strain_infection_values(
+    def _get_force_of_infection_by_strain(
         self, compartment_values: np.ndarray, mixing_matrix: np.ndarray
     ):
         # Calculate total number of people per category (for FoI).
