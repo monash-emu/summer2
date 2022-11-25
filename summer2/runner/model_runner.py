@@ -396,7 +396,7 @@ class ModelBackend:
     ):
         # Calculate total number of people per category (for FoI).
         # A vector with size (num_cats).
-        from summer2.runner.jax.model_impl import get_strain_infection_values
+        from summer2.runner.jax.model_impl import get_force_of_infection
 
         self._category_populations = compartment_values[self._population_category_indexer].sum(
             axis=1
@@ -410,7 +410,7 @@ class ModelBackend:
 
             strain_infectious_values = compartment_values[strain_infectious_idx]
 
-            infection_density, infection_frequency = get_strain_infection_values(
+            infection_density, infection_frequency = get_force_of_infection(
                 strain_infectious_values,
                 strain_compartment_infectiousness,
                 strain_category_indexer,

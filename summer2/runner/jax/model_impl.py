@@ -24,7 +24,7 @@ def clean_compartments(compartment_values: jnp.ndarray):
     return jnp.where(compartment_values < 0.0, 0.0, compartment_values)
 
 
-def get_strain_infection_values(
+def get_force_of_infection(
     strain_infectious_values: jnp.array,
     strain_compartment_infectiousness: jnp.array,
     strain_category_indexer: jnp.array,
@@ -83,7 +83,7 @@ def build_get_infectious_multipliers(runner):
             strain_category_indexer = runner._strain_category_indexers[strain]
 
             strain_infectious_values = compartment_values[strain_infectious_idx]
-            strain_values = get_strain_infection_values(
+            strain_values = get_force_of_infection(
                 strain_infectious_values,
                 strain_compartment_infectiousness,
                 strain_category_indexer,
