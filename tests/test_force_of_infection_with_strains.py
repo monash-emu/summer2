@@ -227,38 +227,19 @@ def test_strain__with_flow_adjustments(backend):
     assert_array_equal(model._backend._compartment_infectiousness["c"], np.array([1]))
     assert_array_equal(model._backend._category_lookup, np.zeros(5))
 
-    # Do pre-iteration force of infection calcs
-    model._backend._prepare_time_step(0, model.initial_population)
-    assert_array_equal(model._backend._category_populations, np.array([1000]))
-    assert_array_equal(model._backend._infection_density["a"], np.array([70]))
-    assert_array_equal(model._backend._infection_density["b"], np.array([20]))
-    assert_array_equal(model._backend._infection_density["c"], np.array([10]))
-    assert_array_equal(model._backend._infection_frequency["a"], np.array([70 / 1000]))
-    assert_array_equal(model._backend._infection_frequency["b"], np.array([20 / 1000]))
-    assert_array_equal(model._backend._infection_frequency["c"], np.array([10 / 1000]))
+    ons_res = model._get_step_test()
 
-    # Get multipliers
-    susceptible = model.compartments[0]
-    infectious_a = model.compartments[1]
-    infectious_b = model.compartments[2]
-    infectious_c = model.compartments[3]
-    assert model._get_infection_density_multiplier(susceptible, infectious_a) == 70
-    assert model._get_infection_density_multiplier(susceptible, infectious_b) == 20
-    assert model._get_infection_density_multiplier(susceptible, infectious_c) == 10
-    assert model._get_infection_frequency_multiplier(susceptible, infectious_a) == 70 / 1000
-    assert model._get_infection_frequency_multiplier(susceptible, infectious_b) == 20 / 1000
-    assert model._get_infection_frequency_multiplier(susceptible, infectious_c) == 10 / 1000
-
+    actual_flow_rates = ons_res["flow_rates"]
     # Get infection flow rates
-    flow_rates = model._backend.get_compartment_rates(model.initial_population, 0)
+    #flow_rates = model._backend.get_compartment_rates(model.initial_population, 0)
     sus_pop = 900
     flow_to_a = sus_pop * contact_rate * (70 * 0.5 / 1000)
     flow_to_b = sus_pop * contact_rate * (20 * 3 / 1000)
     flow_to_c = sus_pop * contact_rate * (10 * 2 / 1000)
     expected_flow_rates = np.array(
-        [-flow_to_a - flow_to_b - flow_to_c, flow_to_a, flow_to_b, flow_to_c, 0.0]
+        (flow_to_a, flow_to_b, flow_to_c)
     )
-    assert_allclose(expected_flow_rates, flow_rates, verbose=True)
+    assert_allclose(expected_flow_rates, actual_flow_rates, verbose=True)
 
 
 def test_strain__with_infectious_multipliers_and_heterogeneous_mixing(backend):

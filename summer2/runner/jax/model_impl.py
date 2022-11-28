@@ -512,8 +512,9 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
             "comp_vals": comp_vals + comp_rates,
             "static_graph_vals": static_graph_vals,
             "ts_graph_vals": ts_graph_vals,
-            "initial_population": initial_population
-        }  # "model_data": model_data}
+            "initial_population": initial_population,
+            "model_data": model_data
+        }
 
     runner_dict = {
         "get_rates": get_rates,
