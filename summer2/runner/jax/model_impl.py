@@ -27,13 +27,26 @@ def clean_compartments(compartment_values: jnp.ndarray):
     return jnp.where(compartment_values < 0.0, 0.0, compartment_values)
 
 
-def get_strain_infection_values(
-    strain_infectious_values,
-    strain_compartment_infectiousness,
-    strain_category_indexer,
-    mixing_matrix,
-    category_populations,
-):
+def get_force_of_infection(
+    strain_infectious_values: jnp.array,
+    strain_compartment_infectiousness: jnp.array,
+    strain_category_indexer: jnp.array,
+    mixing_matrix: jnp.array,
+    category_populations: jnp.array,
+) -> dict:
+    """
+    Calculate the force of infection for both frequency-dependent and density-dependent transmission assumptions.
+    Considers only one strain at this stage, with the strain logic sitting outside of this function.
+    
+    Args:
+        strain_infectious_values: Vector of compartment size values for the infectious compartments (relevant to the strain considered)
+        strain_compartment_infectiousness: Vector of infectiousness scaling values with same length as strain_infectious_values
+        strain_category_indexer: Indexer with each row containing the indices of compartments relevant to a mixing category
+        mixing_matrix: The square mixing matrix with dimensions equal to the number of mixing categories
+            The columns of the matrix represent the infecting categories and the rows the infected categories
+        category_populations: Vector of the population sizes with length equal to the number of mixing categories
+    """
+
     infected_values = strain_infectious_values * strain_compartment_infectiousness
     infectious_populations = jnp.sum(infected_values[strain_category_indexer], axis=-1)
     infection_density = mixing_matrix @ infectious_populations
@@ -73,7 +86,7 @@ def build_get_infectious_multipliers(runner):
             strain_category_indexer = runner._strain_category_indexers[strain]
 
             strain_infectious_values = compartment_values[strain_infectious_idx]
-            strain_values = get_strain_infection_values(
+            strain_values = get_force_of_infection(
                 strain_infectious_values,
                 strain_compartment_infectiousness,
                 strain_category_indexer,
