@@ -1,15 +1,16 @@
+from pyclbr import Function
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 
 from summer2.model import CompartmentalModel
-
+from summer2.parameters import Function, DerivedOutput
 
 def test_no_derived_outputs(backend):
     model = CompartmentalModel(
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
     model.set_initial_population(distribution={"S": 990, "I": 10})
-    model.run(backend=backend)
+    model.run()
     # 6 timesteps, 3 compartments.
     assert model.outputs.shape == (6, 3)
     assert model.derived_outputs == {}
@@ -115,9 +116,11 @@ def test_functional_derived_outputs(backend):
     def get_non_infected(rec, pop):
         return rec / pop
 
+    f = Function(get_non_infected, [DerivedOutput("recovered"), DerivedOutput("population")])
+
     model.request_output_for_compartments("recovered", ["R"])
     model.request_output_for_compartments("population", ["S", "I", "R"])
-    model.request_function_output("recovered_prop", get_non_infected, ["recovered", "population"])
+    model.request_function_output("recovered_prop", f)
 
     model.run(solver="euler")
     dos = model.derived_outputs
