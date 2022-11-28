@@ -883,7 +883,7 @@ class CompartmentalModel:
     Running the model
     """
 
-    def _get_step_test(self, parameters: dict = None):
+    def _get_step_test(self, parameters: dict = None, t: float = None):
         self._update_compartment_indices()
         self.finalize()
 
@@ -895,7 +895,7 @@ class CompartmentalModel:
 
         jax_run_func, jax_runner_dict = build_run_model(self._backend, base_params=parameters)
 
-        return jax_runner_dict["one_step"](parameters)
+        return jax_runner_dict["one_step"](parameters, t)
 
     def get_runner(self, parameters: dict, dyn_params: List = None, jit=True, **backend_args):
         self._update_compartment_indices()

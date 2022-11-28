@@ -168,7 +168,7 @@ def _build_calc_computed_values(runner):
     return calc_computed_values
 
 
-def build_get_flow_rates(runner, ts_graph_func):
+def build_get_flow_rates(runner, ts_graph_func, debug=False):
 
     # calc_computed_values = build_calc_computed_values(runner)
     get_flow_weights = build_get_flow_weights(runner)
@@ -222,7 +222,10 @@ def build_get_flow_rates(runner, ts_graph_func):
             _timestep_deaths = flow_rates[runner.death_flow_indices].sum()
             flow_rates = flow_rates.at[runner._replacement_flow_idx].set(_timestep_deaths)
 
-        return flow_rates, ts_graph_vals["computed_values"]
+        if debug:
+            return flow_rates, ts_graph_vals["computed_values"], ts_graph_vals
+        else:
+            return flow_rates, ts_graph_vals["computed_values"]
 
     return get_flow_rates
 
@@ -245,6 +248,7 @@ def build_get_compartment_rates(runner):
 
 def build_get_rates(runner, ts_graph_func):
     get_flow_rates = build_get_flow_rates(runner, ts_graph_func)
+    get_flow_rates_debug = build_get_flow_rates(runner, ts_graph_func, True)
     get_compartment_rates = build_get_compartment_rates(runner)
 
     def get_rates(compartment_values, time, static_graph_vals, model_data):
@@ -253,7 +257,13 @@ def build_get_rates(runner, ts_graph_func):
 
         return flow_rates, comp_rates
 
-    return {"get_flow_rates": get_flow_rates, "get_rates": get_rates}
+    def get_rates_debug(compartment_values, time, static_graph_vals, model_data):
+        flow_rates, _, cur_ts_vals = get_flow_rates_debug(compartment_values, time, static_graph_vals, model_data)
+        comp_rates = get_compartment_rates(compartment_values, flow_rates)
+
+        return flow_rates, comp_rates, cur_ts_vals
+
+    return {"get_flow_rates": get_flow_rates, "get_rates": get_rates, "get_rates_debug": get_rates_debug}
 
 
 def get_accumulation_maps(runner):
@@ -375,6 +385,7 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
     rates_funcs = build_get_rates(runner, timestep_graph_func)
     get_rates = rates_funcs["get_rates"]
     get_flow_rates = rates_funcs["get_flow_rates"]
+    get_rates_debug = rates_funcs["get_rates_debug"]
 
     from jax import vmap
 
@@ -467,10 +478,17 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
             "derived_outputs": derived_outputs,
         }  # "model_data": model_data}
 
-    def one_step(parameters: dict = None):
+    def one_step(parameters: dict = None, t:float = None, comp_vals = None):
 
         static_graph_vals = static_graph_func(parameters=parameters)
-        initial_population = calc_initial_pop(static_graph_vals)
+        
+        if t is None:
+            t = runner.model.times[0]
+        
+        if comp_vals is None:
+            comp_vals = calc_initial_pop(static_graph_vals)
+
+        initial_population = comp_vals
 
         static_flow_weights = jnp.zeros(len(runner.model.flows))
         for k, v in static_flow_map.items():
@@ -483,16 +501,18 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
             "static_flow_weights": static_flow_weights,
         }
 
-        flow_rates, comp_rates = get_rates(
-            initial_population, runner.model.times[0], static_graph_vals, model_data
+        flow_rates, comp_rates, ts_graph_vals = get_rates_debug(
+            comp_vals, t, static_graph_vals, model_data
         )
 
         # return {"outputs": outputs, "model_data": model_data}
         return {
             "flow_rates": flow_rates,
             "comp_rates": comp_rates,
-            "initial_population": initial_population,
+            "comp_vals": comp_vals + comp_rates,
             "static_graph_vals": static_graph_vals,
+            "ts_graph_vals": ts_graph_vals,
+            "initial_population": initial_population
         }  # "model_data": model_data}
 
     runner_dict = {
@@ -509,6 +529,7 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
         "static_graph_func": static_graph_func,
         "one_step": one_step,
         "derived_outputs_cg": do_cg,
+        "get_rates_debug": rates_funcs["get_rates_debug"]
     }
 
     return run_model, runner_dict

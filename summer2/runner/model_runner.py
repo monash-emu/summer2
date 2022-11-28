@@ -276,12 +276,6 @@ class ModelBackend:
         self._mixing_matrix = mixing_matrix = self._graph_values_timestep["mixing_matrix"]
         self._calculate_strain_infection_values(compartment_values, mixing_matrix)
 
-    def _get_mixing_matrix(self, t):
-        # FIXME: Only used by tests, should never be called in real code
-        self.prepare_to_run()
-        self._prepare_time_step(t, self.model.initial_population)
-        return self._mixing_matrix
-
     def get_flow_weights(self):
         """Collate weights for all model flows at the current timestep"""
 

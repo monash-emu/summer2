@@ -148,7 +148,7 @@ def build_model_new_derived(**kwargs):
     def calc_prop(numerator, denominator):
         return numerator / denominator
 
-    m.request_param_function_output(
+    m.request_function_output(
         "proportion_seropositive",
         func(calc_prop, [DerivedOutput("recovered"), DerivedOutput("total_population")]),
     )
@@ -156,7 +156,7 @@ def build_model_new_derived(**kwargs):
     def scale(value, scale):
         return value * scale
 
-    m.request_param_function_output(
+    m.request_function_output(
         "prop_seropositive_surveyed",
         func(
             scale,

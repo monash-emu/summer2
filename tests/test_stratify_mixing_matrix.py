@@ -31,16 +31,19 @@ def test_no_mixing_matrix(backend):
     model = CompartmentalModel(
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
+
+    model.set_initial_population({})
+
     model._set_backend(backend)
     strat = Stratification(name="agegroup", strata=["child", "adult"], compartments=["S", "I", "R"])
     model.stratify_with(strat)
 
     # We should get the default mixing matrix
+
+    ons_res = model._get_step_test()
+    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+
     default_matrix = np.array([[1]])
-    actual_mixing = model._backend._get_mixing_matrix(0)  # Zero an arbitrary time
-    assert_array_equal(actual_mixing, default_matrix)
-    # Static matrices shouldn't change over time
-    actual_mixing = model._backend._get_mixing_matrix(123)
     assert_array_equal(actual_mixing, default_matrix)
     # No mixing categories have been added.
     assert model._mixing_categories == [{}]
@@ -55,6 +58,7 @@ def test_no_mixing_matrix__with_previous_strat(backend):
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
     model._set_backend(backend)
+    model.set_initial_population({})
     # Apply first stratification with a mixing matrix.
     strat = Stratification(name="agegroup", strata=["child", "adult"], compartments=["S", "I", "R"])
     first_strat_matrix = np.array([[2, 3], [5, 7]])
@@ -68,10 +72,9 @@ def test_no_mixing_matrix__with_previous_strat(backend):
     strat = Stratification(name="location", strata=["work", "home"], compartments=["S", "I", "R"])
     model.stratify_with(strat)
 
-    # We should get the same results as before.
-    actual_mixing = model._backend._get_mixing_matrix(0)
-    assert_array_equal(actual_mixing, first_strat_matrix)
-    actual_mixing = model._backend._get_mixing_matrix(123)
+    ons_res = model._get_step_test()
+    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+
     assert_array_equal(actual_mixing, first_strat_matrix)
     assert model._mixing_categories == [{"agegroup": "child"}, {"agegroup": "adult"}]
 
@@ -85,6 +88,7 @@ def test_single_static_mixing_matrix(backend):
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
     model._set_backend(backend)
+    model.set_initial_population({})
     # Apply first stratification with a mixing matrix.
     strat = Stratification(name="agegroup", strata=["child", "adult"], compartments=["S", "I", "R"])
     mixing_matrix = np.array([[2, 3], [5, 7]])
@@ -92,11 +96,10 @@ def test_single_static_mixing_matrix(backend):
     model.stratify_with(strat)
 
     # We should get the default mixing matrix
-    actual_mixing = model._backend._get_mixing_matrix(0)
+    ons_res = model._get_step_test()
+    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
     assert_array_equal(actual_mixing, mixing_matrix)
-    # Static matrices shouldn't change over time
-    actual_mixing = model._backend._get_mixing_matrix(123)
-    assert_array_equal(actual_mixing, mixing_matrix)
+
     # Agegroup mixing categories have been added.
     assert model._mixing_categories == [{"agegroup": "child"}, {"agegroup": "adult"}]
 
@@ -110,6 +113,7 @@ def test_single_dynamic_mixing_matrix(backend):
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
     model._set_backend(backend)
+    model.set_initial_population({})
     # Apply a stratification with a dynamic mixing matrix.
     strat = Stratification(name="agegroup", strata=["child", "adult"], compartments=["S", "I", "R"])
     dynamic_mixing_matrix = lambda t, cv: t * np.array([[2, 3], [5, 7]])
@@ -117,10 +121,12 @@ def test_single_dynamic_mixing_matrix(backend):
     model.stratify_with(strat)
 
     # We should get the dynamic mixing matrix
-    actual_mixing = model._backend._get_mixing_matrix(0)
+    ons_res = model._get_step_test()
+    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
     assert_array_equal(actual_mixing, 0 * np.array([[2, 3], [5, 7]]))
     # Dynamic matrices should change over time
-    actual_mixing = model._backend._get_mixing_matrix(123)
+    ons_res = model._get_step_test(t=123)
+    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
     assert_array_equal(actual_mixing, 123 * np.array([[2, 3], [5, 7]]))
     # Agegroup mixing categories have been added.
     assert model._mixing_categories == [{"agegroup": "child"}, {"agegroup": "adult"}]
@@ -135,6 +141,7 @@ def test_multiple_static_mixing_matrices(backend):
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
     model._set_backend(backend)
+    model.set_initial_population({})
     # Apply agegroup stratification with a static mixing matrix.
     strat = Stratification(name="agegroup", strata=["child", "adult"], compartments=["S", "I", "R"])
     agegroup_mixing_matrix = np.array([[2, 3], [5, 7]])
@@ -166,10 +173,12 @@ def test_multiple_static_mixing_matrices(backend):
     )
     # We should get the Kronecker product of the two matrices
 
-    actual_mixing = model._backend._get_mixing_matrix(0)
+    ons_res = model._get_step_test()
+    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
     assert_array_equal(actual_mixing, expected_mixing_matrix)
     # Static matrices shouldn't change over time
-    actual_mixing = model._backend._get_mixing_matrix(123)
+    ons_res = model._get_step_test(123)
+    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
     assert_array_equal(actual_mixing, expected_mixing_matrix)
     # Double check that we calculated the Kronecker product correctly
     kron_mixing = np.kron(agegroup_mixing_matrix, location_mixing_matrix)
@@ -185,6 +194,7 @@ def test_multiple_dynamic_mixing_matrices(backend):
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
     model._set_backend(backend)
+    model.set_initial_population({})
     # Apply agegroup stratification with a static mixing matrix.
     strat = Stratification(name="agegroup", strata=["child", "adult"], compartments=["S", "I", "R"])
     agegroup_mixing_matrix = lambda t, cv: t * np.array([[2, 3], [5, 7]])
@@ -215,11 +225,13 @@ def test_multiple_dynamic_mixing_matrices(backend):
         ]
     )
     # We should get the Kronecker product of the two matrices
-    actual_mixing = model._backend._get_mixing_matrix(1)
+    ons_res = model._get_step_test(t=1)
+    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
     assert_array_equal(actual_mixing, expected_mixing_matrix)
     # Double check that we calculated the Kronecker product correctly
     kron_mixing = np.kron(agegroup_mixing_matrix(1, None), location_mixing_matrix(1, None))
     assert_array_equal(expected_mixing_matrix, kron_mixing)
     # Dynamic matrices should change over time
-    actual_mixing = model._backend._get_mixing_matrix(5)
+    ons_res = model._get_step_test(t=5)
+    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
     assert_array_equal(actual_mixing, 25 * expected_mixing_matrix)
