@@ -9,7 +9,7 @@ def test_no_derived_outputs(backend):
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
     model.set_initial_population(distribution={"S": 990, "I": 10})
-    model.run(backend=backend)
+    model.run()
     # 6 timesteps, 3 compartments.
     assert model.outputs.shape == (6, 3)
     assert model.derived_outputs == {}

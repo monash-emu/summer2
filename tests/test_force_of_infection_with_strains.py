@@ -44,7 +44,7 @@ def test_model__with_two_symmetric_stratifications(backend):
     infectious = model.compartments[1]
     assert model._get_infection_density_multiplier(susceptible, infectious) == 100.0
     assert model._get_infection_frequency_multiplier(susceptible, infectious) == 0.1
-    model.run(backend=backend)
+    model.run()
 
     # Create a stratified model where the two non-strain strata are symmetric
     stratified_model = CompartmentalModel(
@@ -55,7 +55,7 @@ def test_model__with_two_symmetric_stratifications(backend):
     stratified_model.add_transition_flow("recovery", 0.1, "I", "R")
     strat = Stratification("clinical", ["home", "hospital"], ["I"])
     stratified_model.stratify_with(strat)
-    stratified_model.run(backend=backend)
+    stratified_model.run()
 
     # Ensure stratified model has the same results as the unstratified model.
     merged_outputs = np.zeros_like(model.outputs)
@@ -88,7 +88,7 @@ def test_strains__with_two_symmetric_strains(backend):
     infectious = model.compartments[1]
     assert model._get_infection_density_multiplier(susceptible, infectious) == 100.0
     assert model._get_infection_frequency_multiplier(susceptible, infectious) == 0.1
-    model.run(backend=backend)
+    model.run()
 
     # Create a stratified model where the two strain strata are symmetric
     strain_model = CompartmentalModel(
@@ -99,7 +99,7 @@ def test_strains__with_two_symmetric_strains(backend):
     strain_model.add_transition_flow("recovery", 0.1, "I", "R")
     strat = StrainStratification("strain", ["a", "b"], ["I"])
     strain_model.stratify_with(strat)
-    strain_model.run(backend=backend)
+    strain_model.run()
 
     # Ensure stratified model has the same results as the unstratified model.
     merged_outputs = np.zeros_like(model.outputs)

@@ -16,7 +16,7 @@ def test_model__with_static_dynamics__expect_no_change(backend):
         times=[0, 5], compartments=["S", "I", "R"], infectious_compartments=["I"]
     )
     model.set_initial_population(distribution={"S": 990, "I": 10})
-    model.run(backend=backend)
+    model.run()
     # Expect that no one has moved from sucsceptible to infections at any point in time
     expected_outputs = np.array(
         [
@@ -41,7 +41,7 @@ def test_model__with_birth_rate__expect_pop_increase(backend):
     model.set_initial_population(distribution={"S": 100, "I": 100})
     # Add some babies at ~2 babies / 100 / year.
     model.add_crude_birth_flow("births", 0.02, "S")
-    model.run(backend=backend)
+    model.run()
     # Expect that we have more people in the population per year
     expected_outputs = np.array(
         [
@@ -66,7 +66,7 @@ def test_model__with_death_rate__expect_pop_decrease(backend):
     model.set_initial_population(distribution={"S": 100, "I": 100})
     # Add some dying at ~2 people / 100 / year.
     model.add_universal_death_flows("deaths", 0.02)
-    model.run(backend=backend)
+    model.run()
     # Expect that we have fewer people in the population per year
     expected_outputs = np.array(
         [
@@ -91,7 +91,7 @@ def test_model__with_birth_and_death_rate__expect_pop_static_overall(backend):
     model.add_crude_birth_flow("births", 0.02, "S")
     # Add some dying at ~2 people / 100 / year.
     model.add_universal_death_flows("deaths", 0.02)
-    model.run(backend=backend)
+    model.run()
     expected_outputs = np.array(
         [
             [100.0, 100.0, 0],  # Initial conditions
@@ -159,7 +159,7 @@ def test_model__with_recovery_rate__expect_all_recover(backend):
     model.set_initial_population(distribution={"I": 100})
     # Add recovery dynamics.
     model.add_transition_flow("recovery", 1, "I", "R")
-    model.run(backend=backend)
+    model.run()
     # Expect that almost everyone recovers
     expected_outputs = np.array(
         [
@@ -187,7 +187,7 @@ def test_model__with_infect_death_rate__expect_infected_pop_decrease(backend):
     model.set_initial_population(distribution={"S": 50, "I": 50})
     # Add some dying at ~2 people / 100 / year.
     model.add_death_flow("infect_death", 0.02, "I")
-    model.run(backend=backend)
+    model.run()
     expected_outputs = np.array(
         [
             [50.00, 50.00, 0],  # Initial conditions
@@ -211,7 +211,7 @@ def test_model__with_no_infected__expect_no_change(backend):
     )
     model.set_initial_population(distribution={"S": 100, "I": 0})
     model.add_infection_frequency_flow("infection", 10, "S", "I")
-    model.run(backend=backend)
+    model.run()
     # Expect that no one has moved from sucsceptible to infections at any point in time
     expected_outputs = np.array(
         [
@@ -324,7 +324,7 @@ def test_strat_model__with_age__expect_ageing(backend):
     strat = AgeStratification("age", [0, 5, 15, 60], ["S", "I"])
     model.stratify_with(strat)
     # Run the model for 5 years.
-    model.run(backend=backend)
+    model.run()
 
     # Expect everyone to generally get older, but no one should die or get sick
     expected_arr = np.array(
@@ -352,7 +352,7 @@ def test_strat_model__with_age_and_starting_proportion__expect_ageing(backend):
     strat.set_population_split({"0": 0.8, "5": 0.1, "15": 0.1, "60": 0})
     model.stratify_with(strat)
     # Run the model for 5 years.
-    model.run(backend=backend)
+    model.run()
 
     # Expect everyone to generally get older, but no one should die or get sick.
     # Expect initial distribution of ages to be set according to "requested_proportions".
