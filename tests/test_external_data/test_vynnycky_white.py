@@ -183,7 +183,7 @@ def test_chapter_3_1_model():
     }
     model.run(parameters=parameters, solver="euler")
     flu_values = model.get_outputs_df()
-    assert abs(flu_data - flu_values).max().max() < 1e-5
+    assert abs(flu_data - flu_values).max().max() < TOLERANCE
 
 
 def test_chapter_3_2_model():
