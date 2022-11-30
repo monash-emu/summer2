@@ -114,8 +114,8 @@ def test_chapter_2_1a_model():
         "R0": 2.,
     }
     model.run(parameters=parameters, solver="euler")
-    seir_outputs = model.get_outputs_df()
-    assert abs(seir_data - seir_outputs).max().max() < TOLERANCE
+    seir_values = model.get_outputs_df()
+    assert abs(seir_data - seir_values).max().max() < TOLERANCE
 
 
 def test_chapter_3_1_model():
