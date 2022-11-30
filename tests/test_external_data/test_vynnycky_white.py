@@ -1,81 +1,422 @@
 import pandas as pd
+
 from summer2.model import CompartmentalModel
+from summer2.parameters import Parameter
+
+TOLERANCE = 1e-5
 
 
-def test_chapter_2_model(tolerance=1e-9):
-    """
-    Run the model from Chapter 2 of Vynnycky and White using summer
-    and compare to the results from the worked example in the Excel spreadsheet.
-    """
-
-    # Specify parameters
-    tot_popn = 100000
-    ave_preinfous = 2
-    ave_infous = 2
-    R0 = 2
-    beta = R0 / ave_infous
-    infous_rate = 1 / ave_preinfous
-    rec_rate = 1 / ave_infous
-    infectious_seed = 1
-
-    # Set up the SEIR model
+def test_chapter_2_model():
+    model_2_1 = pd.read_csv(
+        "./tests/test_external_data/vynnycky_white_examples/model_2_1.csv",
+        index_col=0,
+    )
+    config = {
+        "tot_popn": 1e5,
+        "infectious_seed": 1.,
+        "end_time": 1000.,
+    }
     compartments = (
         "Susceptible", 
         "Pre-infectious", 
         "Infectious", 
         "Immune"
     )
-    seir_model = CompartmentalModel(
-        times=(0, 200),
+    model = CompartmentalModel(
+        times=(0, config["end_time"]),
         compartments=compartments,
         infectious_compartments=("Infectious",),
     )
-    seir_model.set_initial_population(
+    model.set_initial_population(
         distribution={
-            "Susceptible": tot_popn - infectious_seed, 
-            "Infectious": infectious_seed
+            "Susceptible": config["tot_popn"] - config["infectious_seed"],
+            "Infectious": config["infectious_seed"],
         }
     )
-    seir_model.add_infection_frequency_flow(
+    ave_infous = Parameter("ave_infous")
+    model.add_infection_frequency_flow(
         name="infection", 
-        contact_rate=beta,
+        contact_rate=Parameter("R0") / ave_infous,
         source="Susceptible",
         dest="Pre-infectious"
     )
-    seir_model.add_transition_flow(
+    model.add_transition_flow(
         name="progression", 
-        fractional_rate=infous_rate,
+        fractional_rate=1. / Parameter("ave_preinfous"),
         source="Pre-infectious", 
         dest="Infectious"
     )
-    seir_model.add_transition_flow(
+    model.add_transition_flow(
         name="recovery", 
-        fractional_rate=rec_rate, 
+        fractional_rate=1. / ave_infous, 
         source="Infectious", 
         dest="Immune"
     )
-    seir_model.request_output_for_flow(
-        name="incidence", 
-        flow_name="progression",
-        raw_results=True,
-    )
+    parameters = {
+        "ave_preinfous": 2.,
+        "ave_infous": 2.,
+        "R0": 2.,
+    }
+    model.run(parameters=parameters, solver="euler")
+    seir_compartments = model.get_outputs_df()
+    assert abs(model_2_1 - seir_compartments).max().max() < TOLERANCE
 
-    # Run the model and get the compartment sizes and modelled incidence
-    seir_model.run(solver="euler")
-    seir_compartments = seir_model.get_outputs_df()
-    modelled_incidence = seir_model.get_derived_outputs_df()["incidence"].iloc[:200]
 
-    # Get the corresponding results from the worked Excel sheets
-    model_2_1 = pd.read_csv(
-        "./tests/test_external_data/vynnycky_white_examples/model_2_1.csv",
+def test_chapter_2_1a_model():
+    seir_data = pd.read_csv(
+        "./tests/test_external_data/vynnycky_white_examples/model_2_1a_seir.csv",
         index_col=0,
     )
+    config = {
+        "tot_popn": 1e5,
+        "infectious_seed": 1.,
+        "end_time": 1000.,
+    }
+    compartments = (
+        "Susceptible", 
+        "Pre-infectious", 
+        "Infectious", 
+        "Immune"
+    )
+    model = CompartmentalModel(
+        times=(0., config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=("Infectious",),
+    )
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["tot_popn"] - config["infectious_seed"],
+            "Infectious": config["infectious_seed"],
+        }
+    )
+    ave_infous = Parameter("ave_infous")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("R0") / ave_infous,
+        source="Susceptible",
+        dest="Pre-infectious"
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("ave_preinfous"),
+        source="Pre-infectious", 
+        dest="Infectious"
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / ave_infous,
+        source="Infectious", 
+        dest="Immune"
+    )
+    parameters = {
+        "ave_preinfous": 2.,
+        "ave_infous": 2.,
+        "R0": 2.,
+    }
+    model.run(parameters=parameters, solver="euler")
+    seir_outputs = model.get_outputs_df()
+    assert abs(seir_data - seir_outputs).max().max() < TOLERANCE
 
-    comp_diffs = model_2_1.iloc[:200, :4] - seir_compartments
-    assert comp_diffs.dropna().max().max() < tolerance
 
-    # Compare incidence
-    example_incidence = model_2_1.loc[1: 200, "Incidence"].astype(float)
-    example_incidence.index = example_incidence.index - 1.
-    diff = example_incidence - modelled_incidence
-    assert diff.max() < tolerance
+def test_chapter_3_1_model():
+    measles_data = pd.read_csv(
+        "./tests/test_external_data/vynnycky_white_examples/model_3_1_measles.csv",
+        index_col=0,
+    )
+    flu_data = pd.read_csv(
+        "./tests/test_external_data/vynnycky_white_examples/model_3_1_flu.csv",
+        index_col=0,
+    )
+    config = {
+        "tot_popn": 1e5,
+        "infectious_seed": 1.,
+        "end_time": 10000.,
+    }
+    compartments = (
+        "Susceptible", 
+        "Pre-infectious", 
+        "Infectious", 
+        "Immune",
+    )
+    model = CompartmentalModel(
+        times=(0., config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=["Infectious"],
+    )
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["tot_popn"] - config["infectious_seed"],
+            "Infectious": config["infectious_seed"],
+        }
+    )
+    ave_infous = Parameter("ave_infous")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("r0") / ave_infous,
+        source="Susceptible",
+        dest="Pre-infectious"
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("ave_preinfous"),
+        source="Pre-infectious", 
+        dest="Infectious"
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / ave_infous,
+        source="Infectious", 
+        dest="Immune"
+    )
+    parameters = {
+        "r0": 13.,
+        "ave_preinfous": 8.,
+        "ave_infous": 7.,
+    }
+    model.run(parameters=parameters, solver="euler")
+    measles_values = model.get_outputs_df()
+    assert abs(measles_data - measles_values).max().max() < 1e-5
+    parameters = {
+        "r0": 2.,
+        "ave_infous": 2.,
+        "ave_preinfous": 2.,
+    }
+    model.run(parameters=parameters, solver="euler")
+    flu_values = model.get_outputs_df()
+    assert abs(flu_data - flu_values).max().max() < 1e-5
+
+
+def test_chapter_3_2_model():
+    demog_data = pd.read_csv(
+        "./tests/test_external_data/vynnycky_white_examples/model_3_2.csv",
+        index_col=0,
+    )
+    config = {
+        "tot_popn": 1e5,
+        "infectious_seed": 1.,
+        "end_time": 100.,
+    }
+    compartments = ("Susceptible", "Pre-infectious", "Infectious", "Immune")
+    model = CompartmentalModel(
+        times=(0, config["end_time"] * 365.),
+        compartments=compartments,
+        infectious_compartments=["Infectious"],
+    )
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["tot_popn"] - config["infectious_seed"],
+            "Infectious": config["infectious_seed"],
+        }
+    )
+    ave_infous = Parameter("ave_infous")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("r0") / ave_infous,
+        source="Susceptible", 
+        dest="Pre-infectious"
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("ave_preinfous"),
+        source="Pre-infectious", 
+        dest="Infectious"
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / ave_infous,
+        source="Infectious", 
+        dest="Immune"
+    )
+    model.add_universal_death_flows(
+        "universal_death",
+        death_rate=1. / Parameter("life_expectancy") / 365.
+    )
+    model.add_replacement_birth_flow(
+        "births",
+        "Susceptible"
+    )
+    parameters = {
+        "r0": 13.,
+        "ave_preinfous": 8.,
+        "ave_infous": 7.,
+        "life_expectancy": 70.,
+    }
+    model.run(parameters=parameters, solver="euler")
+    demog_values = model.get_outputs_df()
+    assert abs(demog_data - demog_values).max().max() < TOLERANCE
+
+
+def test_chapter_4_1a_model():
+    seir_data = pd.read_csv(
+        "./tests/test_external_data/vynnycky_white_examples/model_4_1a.csv",
+        index_col=0,
+    )
+    config = {
+        "tot_popn": 1e5,
+        "infectious_seed": 1.,
+        "end_time": 2000.,
+        "t_step": 1.,
+    }
+    compartments = ("Susceptible", "Pre-infectious", "Infectious", "Immune")
+    model = CompartmentalModel(
+        times=(0, config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=["Infectious"],
+        timestep=config["t_step"],
+    )
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["tot_popn"] - config["infectious_seed"],
+            "Infectious": config["infectious_seed"]
+        }
+    )
+    ave_infous = Parameter("ave_infous")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("r0") / ave_infous,
+        source="Susceptible",
+        dest="Pre-infectious"
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("ave_preinfous"),
+        source="Pre-infectious", 
+        dest="Infectious"
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / ave_infous,
+        source="Infectious", 
+        dest="Immune"
+    )
+    parameters = {
+        "r0": 2.,
+        "ave_preinfous": 2.,
+        "ave_infous": 2.,
+        "life_expectancy": 70.,
+    }
+    model.run(parameters=parameters, solver="euler")
+    seir_values = model.get_outputs_df()
+    assert abs(seir_data - seir_values).max().max() < TOLERANCE
+
+
+def test_chapter_4_2_model():
+    seir_data = pd.read_csv(
+        "./tests/test_external_data/vynnycky_white_examples/model_4_2.csv",
+        index_col=0,
+    )
+    config = {
+        "tot_popn": 5234.,
+        "infous_0": 2.,
+        "end_time": 200.,
+        "t_step": 0.5,
+        "prop_immune_0": 0.3,
+    }
+    compartments = ("Susceptible", "Pre-infectious", "Infectious", "Immune")
+    model = CompartmentalModel(
+        times=(0, config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=["Infectious"],
+        timestep=config["t_step"],
+    )
+    n_immune_0 = config["prop_immune_0"] * config["tot_popn"]
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["tot_popn"] - config["infous_0"] - n_immune_0, 
+            "Infectious": config["infous_0"],
+            "Immune": n_immune_0,
+        }
+    )
+    ave_infous = Parameter("ave_infous")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("r0") / ave_infous,
+        source="Susceptible",
+        dest="Pre-infectious"
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("ave_preinfous"),
+        source="Pre-infectious", 
+        dest="Infectious"
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / ave_infous,
+        source="Infectious", 
+        dest="Immune"
+    )
+    parameters = {
+        "r0": 2.1,
+        "ave_preinfous": 2.,
+        "ave_infous": 2.,
+        "life_expectancy": 70.,
+    }
+    model.run(parameters=parameters, solver="euler")
+    seir_values = model.get_outputs_df()
+    assert abs(seir_data - seir_values).max().max() < TOLERANCE
+
+
+def test_chapter_4_3a_model():
+    seir_data = pd.read_csv(
+        "./tests/test_external_data/vynnycky_white_examples/model_4_3a.csv",
+        index_col=0,
+    )
+    config = {
+        "tot_popn": 1e5,
+        "infous_0": 1.,
+        "end_time": 18250.,
+        "t_step": 1.,
+        "prop_immune_0": 0.3,
+    }
+    compartments = ("Susceptible", "Pre-infectious", "Infectious", "Immune")
+    model = CompartmentalModel(
+        times=(0, config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=["Infectious"],
+        timestep=config["t_step"],
+    )
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["tot_popn"] - config["infous_0"],
+            "Infectious": config["infous_0"],
+        }
+    )
+    r0 = Parameter("r0")
+    ave_infous = Parameter("ave_infous")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=r0 / ave_infous,
+        source="Susceptible", 
+        dest="Pre-infectious",
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("ave_preinfous"),
+        source="Pre-infectious", 
+        dest="Infectious",
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / ave_infous,
+        source="Infectious", 
+        dest="Immune",
+    )
+    model.add_universal_death_flows(
+        "universal_death",
+        death_rate=1. / Parameter("life_expectancy") / 365.,
+    )
+    model.add_replacement_birth_flow(
+        "births",
+        "Susceptible",
+    )
+    parameters = {
+        "r0": 13.,
+        "ave_preinfous": 8.,
+        "ave_infous": 7.,
+        "life_expectancy": 70.,
+    }
+    model.run(parameters=parameters, solver="euler")
+    seir_values = model.get_outputs_df()
+    assert abs(seir_data - seir_values).max().max() < TOLERANCE
+    
