@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "summerepi2"
-version = "1.0.1b4"
+version = "1.0.2"
 readme = "README.md"
 license = "BSD-2-Clause"
 homepage = "http://summerepi.com/"
