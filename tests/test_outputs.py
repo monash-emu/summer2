@@ -5,7 +5,8 @@ Results modelled in Excel using the Euler method using a 1e-6 timestep. Some res
 import numpy as np
 from numpy.testing import assert_allclose
 
-from summer2 import AgeStratification, CompartmentalModel
+from summer2 import AgeStratification, CompartmentalModel, Stratification
+from summer2.parameters import Parameter, DerivedOutput
 
 
 def test_model__with_static_dynamics__expect_no_change(backend):
@@ -312,6 +313,123 @@ def test_model__with_complex_dynamics__expect_correct_outputs(backend):
         ]
     )
     assert_allclose(model.outputs, expected_outputs, atol=0.2, verbose=True)
+
+
+def test_strat_model__with_replacement_and_multiple_death_flows(backend):
+    def build_hiv_model(
+        config: dict,
+    ) -> CompartmentalModel:
+
+        # Model characteristics
+        compartments = ("Susceptible", "Infectious", "AIDS")
+        model = CompartmentalModel(
+            times=(0.0, config["end_time"]),
+            compartments=compartments,
+            infectious_compartments=("Infectious",),
+        )
+        model.set_initial_population(
+            distribution={
+                "Susceptible": config["total_population"] - config["infectious_seed"],
+                "Infectious": config["infectious_seed"],
+            }
+        )
+        model.add_infection_frequency_flow(
+            name="infection",
+            contact_rate=Parameter("contact_rate"),
+            source="Susceptible",
+            dest="Infectious",
+        )
+        model.add_transition_flow(
+            name="progression",
+            fractional_rate=1.0 / Parameter("infectious_period"),
+            source="Infectious",
+            dest="AIDS",
+        )
+
+        model.add_replacement_birth_flow(
+            "recruitment",
+            "Susceptible",
+        )
+
+        model.add_universal_death_flows(
+            "non_aids_mortality",
+            1.0 / Parameter("expectancy_at_debut"),
+        )
+
+        model.add_death_flow(
+            "aids_mortality",
+            1.0 / Parameter("aids_period"),
+            "AIDS",
+        )
+
+        # Activity rate stratification
+        activity_strat = Stratification(
+            "activity",
+            ["High", "Low"],
+            compartments,
+        )
+        high_prop = config["high_prop"]
+        low_prop = 1.0 - high_prop
+        activity_strat.set_population_split(
+            {
+                "High": high_prop,
+                "Low": low_prop,
+            }
+        )
+        activity_strat.set_flow_adjustments(
+            "recruitment",
+            adjustments={
+                "High": high_prop,
+                "Low": low_prop,
+            },
+        )
+
+        model.stratify_with(activity_strat)
+
+        model.request_output_for_flow("recruitment", "recruitment")
+        model.request_output_for_flow("non_aids_mortality", "non_aids_mortality")
+        model.request_output_for_flow("aids_mortality", "aids_mortality")
+        model.request_function_output(
+            "total_mortality", DerivedOutput("aids_mortality") + DerivedOutput("non_aids_mortality")
+        )
+
+        return model
+
+    model_config = {
+        "high_prop": 0.15,
+        "high_partner_change_rate": 8.0,
+        "low_partner_change_rate": 0.2,
+        "total_population": 1e4,
+        "infectious_seed": 100.0,
+        "end_time": 100.0,
+    }
+
+    # From equation 8.20
+    model_config["high_partner_change_prop"] = (
+        model_config["high_partner_change_rate"]
+        * model_config["high_prop"]
+        / (
+            model_config["high_partner_change_rate"] * model_config["high_prop"]
+            + model_config["low_partner_change_rate"] * (1.0 - model_config["high_prop"])
+        )
+    )
+    model_config["low_partner_change_prop"] = 1.0 - model_config["high_partner_change_prop"]
+
+    parameters = {
+        "infectious_period": 9.0,
+        "expectancy_at_debut": 35.0,
+        "aids_period": 1.0,
+        "contact_rate": 0.05,
+    }
+
+    hiv_model = build_hiv_model(model_config)
+    hiv_model.run(parameters=parameters)
+    outputs = hiv_model.get_outputs_df()
+    assert_allclose(hiv_model.get_outputs_df().sum(axis=1), 10000.0)
+
+    do_df = hiv_model.get_derived_outputs_df()
+
+    assert_allclose(do_df["total_mortality"], do_df["recruitment"])
 
 
 def test_strat_model__with_age__expect_ageing(backend):
