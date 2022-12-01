@@ -202,7 +202,7 @@ class CompartmentalModel:
         # Ensure dictionary contains all comparments (default to 0 if not supplied)
         for idx, comp in enumerate(self._original_compartment_names):
             if comp not in self._init_pop_dist:
-                self._init_pop_dist[comp] = 0
+                self._init_pop_dist[comp] = 0.0
 
     def finalize(self):
         if not self._finalized:

@@ -3,7 +3,7 @@
 from jax import lax, numpy as jnp
 
 
-def euler(get_comp_rates, initial_population, times, model_params, model_data):
+def euler_while(get_comp_rates, initial_population, times, model_params, model_data):
 
     times = jnp.linspace(times[0], times[-1], len(times))
 
@@ -29,6 +29,31 @@ def euler(get_comp_rates, initial_population, times, model_params, model_data):
 
     _, final = lax.while_loop(cond, body, (0, out_vals))
     return final
+
+
+def euler(get_comp_rates, initial_population, times, model_params, model_data):
+
+    times = jnp.linspace(times[0], times[-1], len(times))
+
+    timestep = times[1] - times[0]
+
+    out_vals = jnp.empty((len(times), len(initial_population)))
+    out_vals = out_vals.at[0].set(initial_population)
+
+    max_i = len(times) - 1
+    irange = jnp.arange(0, max_i)
+
+    def body(carry, i):
+        out_vals, comp_vals = carry
+        t = times[i]
+        # comp_vals = out_vals[i]
+        comp_rates = get_comp_rates(comp_vals, t, model_params, model_data)
+        comp_vals = comp_vals + comp_rates * timestep
+        out_vals = out_vals.at[i + 1].set(comp_vals)
+        return (out_vals, comp_vals), i + 1
+
+    (cvals, _), _ = lax.scan(body, (out_vals, initial_population), irange)
+    return cvals
 
 
 def rk4(get_comp_rates, initial_population, times, model_params, model_data):
