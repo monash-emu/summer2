@@ -1012,23 +1012,6 @@ class CompartmentalModel:
         self.initial_population = init_compartments
         self._baseline = baseline
 
-    def _calculate_derived_outputs(self):
-        return calculate_derived_outputs(
-            requests=self._derived_output_requests,
-            graph=self._derived_output_graph,
-            outputs=self.outputs,
-            times=self.times,
-            timestep=self.timestep,
-            flows=self.flows,
-            compartments=self.compartments,
-            get_flow_rates=self._backend.get_flow_rates,
-            model=self,
-            whitelist=self._derived_outputs_whitelist,
-            baseline=self._baseline,
-            idx_cache=self._derived_outputs_idx_cache,
-            parameters=self._backend.parameters,
-        )
-
     def request_output_for_flow(
         self,
         name: str,
