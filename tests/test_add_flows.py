@@ -20,7 +20,7 @@ def test_apply_flows__with_no_flows(backend):
     Expect no flow to occur because there are no flows.
     """
     model = create_simple_model()
-    actual_flow_rates = model._get_step_test()["comp_rates"]
+    actual_flow_rates = model._get_step_test().comp_rates
     expected_flow_rates = np.array([0, 0])
     assert_array_equal(actual_flow_rates, expected_flow_rates)
 
@@ -65,7 +65,7 @@ def test_apply_flows__with_transition_flow__expect_flows_applied(
     model = CompartmentalModel(times=[0, 5], compartments=["S", "I"], infectious_compartments=["I"])
     model.set_initial_population(distribution={"S": sus_pop, "I": inf_pop})
     model.add_transition_flow("deliberately_infected", 0.1, "S", "I")
-    actual_flow_rates = model._get_step_test()["comp_rates"]
+    actual_flow_rates = model._get_step_test().comp_rates
     # Expect sus_pop * 0.1 = exp_flow
     expected_flow_rates = np.array([-exp_flow, exp_flow])
     assert_array_equal(actual_flow_rates, expected_flow_rates)
@@ -82,7 +82,7 @@ def test_apply_flows__with_infection_frequency(backend, inf_pop, sus_pop, exp_fl
     model = CompartmentalModel(times=[0, 5], compartments=["S", "I"], infectious_compartments=["I"])
     model.set_initial_population(distribution={"S": sus_pop, "I": inf_pop})
     model.add_infection_frequency_flow("infection", 20, "S", "I")
-    actual_flow_rates = model._get_step_test()["comp_rates"]
+    actual_flow_rates = model._get_step_test().comp_rates
     # Expect sus_pop * 20 * (inf_pop / 1000) = exp_flow
     expected_flow_rates = np.array([-exp_flow, exp_flow])
     assert_array_equal(actual_flow_rates, expected_flow_rates)
@@ -99,7 +99,7 @@ def test_apply_flows__with_infection_density(backend, inf_pop, sus_pop, exp_flow
     model = CompartmentalModel(times=[0, 5], compartments=["S", "I"], infectious_compartments=["I"])
     model.set_initial_population(distribution={"S": sus_pop, "I": inf_pop})
     model.add_infection_density_flow("infection", 0.02, "S", "I")
-    actual_flow_rates = model._get_step_test()["comp_rates"]
+    actual_flow_rates = model._get_step_test().comp_rates
     # Expect 0.2 * sus_pop * inf_pop = exp_flow
     expected_flow_rates = np.array([-exp_flow, exp_flow])
     assert_array_equal(actual_flow_rates, expected_flow_rates)
@@ -110,7 +110,7 @@ def test_apply_infect_death_flows(backend, inf_pop, exp_flow):
     model = CompartmentalModel(times=[0, 5], compartments=["S", "I"], infectious_compartments=["I"])
     model.set_initial_population(distribution={"I": inf_pop})
     model.add_death_flow("infection_death", 0.1, "I")
-    actual_flow_rates = model._get_step_test()["comp_rates"]
+    actual_flow_rates = model._get_step_test().comp_rates
     # Expect 0.1 * inf_pop = exp_flow
     expected_flow_rates = np.array([0, -exp_flow])
     assert_array_equal(actual_flow_rates, expected_flow_rates)
@@ -120,7 +120,7 @@ def test_apply_universal_death_flow(backend):
     model = CompartmentalModel(times=[0, 5], compartments=["S", "I"], infectious_compartments=["I"])
     model.set_initial_population(distribution={"S": 990, "I": 10})
     model.add_universal_death_flows("universal_death", 0.1)
-    actual_flow_rates = model._get_step_test()["comp_rates"]
+    actual_flow_rates = model._get_step_test().comp_rates
     expected_flow_rates = np.array([-99, -1])
     assert_array_equal(actual_flow_rates, expected_flow_rates)
 
@@ -146,7 +146,7 @@ def test_apply_replace_death_birth_flow(backend):
     model.add_death_flow("infection_death", 0.1, "I")
     model.add_universal_death_flows("universal_death", 0.05)
     model.add_replacement_birth_flow("births", "S")
-    actual_flow_rates = model._get_step_test()["comp_rates"]
+    actual_flow_rates = model._get_step_test().comp_rates
     # Expect 10 people to die and 10 to be born
     exp_i_flow_rate = -0.1 * 100 - 0.05 * 100
     exp_s_flow_rate = -exp_i_flow_rate  # N.B births + deaths in the S compartment should balance.
@@ -168,7 +168,7 @@ def test_apply_many_flows(backend):
     model.add_transition_flow("recovery", 0.1, "I", "R")
     model.add_transition_flow("vaccination", 0.1, "S", "R")
     model.add_crude_birth_flow("births", 0.1, "S")
-    actual_flow_rates = model._get_step_test()["comp_rates"]
+    actual_flow_rates = model._get_step_test().comp_rates
 
     # Expect the effects of all these flows to be linearly superimposed.
     infect_death_flows = np.array([0, -10, 0])

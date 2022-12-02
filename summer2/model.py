@@ -24,6 +24,7 @@ from summer2.parameters import params
 
 from summer2.parameters.param_impl import finalize_parameters
 from summer2.runner import ModelBackend
+from summer2.runner.jax.model_impl import StepResults
 from summer2.solver import SolverType, solve_ode
 from summer2.stratification import Stratification
 from summer2.utils import get_scenario_start_index, ref_times_to_dti, clean_compartment_values
@@ -871,7 +872,7 @@ class CompartmentalModel:
     Running the model
     """
 
-    def _get_step_test(self, parameters: dict = None, t: float = None):
+    def _get_step_test(self, parameters: dict = None, t: float = None) -> StepResults:
         self._update_compartment_indices()
         self.finalize()
 

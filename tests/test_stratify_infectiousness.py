@@ -45,7 +45,7 @@ def test_strat_infectiousness__with_adjustments(backend):
     ons_res = model._get_step_test()
 
     assert_array_equal(
-        ons_res["model_data"]["compartment_infectiousness"]["default"],
+        ons_res.model_data["compartment_infectiousness"]["default"],
         np.array([1, 3, 0.5]),
     )
 
@@ -55,11 +55,11 @@ def test_strat_infectiousness__with_adjustments(backend):
     expected_density = 10 * 1 + 30 * 3 + 60 * 0.5
     expected_frequency = expected_density / 1000
 
-    assert_array_equal(ons_res["infectious_multipliers"], expected_frequency)
+    assert_array_equal(ons_res.infectious_multipliers, expected_frequency)
 
     model = get_model("dens")
     ons_res = model._get_step_test()
-    assert_array_equal(ons_res["infectious_multipliers"], expected_density)
+    assert_array_equal(ons_res.infectious_multipliers, expected_density)
 
 
 def test_strat_infectiousness__with_multiple_adjustments(backend):
@@ -97,7 +97,7 @@ def test_strat_infectiousness__with_multiple_adjustments(backend):
     ons_res = model._get_step_test()
 
     assert_array_equal(
-        ons_res["model_data"]["compartment_infectiousness"]["default"],
+        ons_res.model_data["compartment_infectiousness"]["default"],
         np.array([1, 7, 1, 21, 1, 3.5]),
     )
 
@@ -105,4 +105,4 @@ def test_strat_infectiousness__with_multiple_adjustments(backend):
     expected_density = 5 * 1 + 5 * 7 + 15 * 1 + 15 * 21 + 30 * 1 + 30 * 3.5
     expected_frequency = expected_density / 1000
 
-    assert_array_equal(ons_res["infectious_multipliers"], expected_frequency)
+    assert_array_equal(ons_res.infectious_multipliers, expected_frequency)

@@ -41,7 +41,7 @@ def test_no_mixing_matrix(backend):
     # We should get the default mixing matrix
 
     ons_res = model._get_step_test()
-    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+    actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
 
     default_matrix = np.array([[1]])
     assert_array_equal(actual_mixing, default_matrix)
@@ -73,7 +73,7 @@ def test_no_mixing_matrix__with_previous_strat(backend):
     model.stratify_with(strat)
 
     ons_res = model._get_step_test()
-    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+    actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
 
     assert_array_equal(actual_mixing, first_strat_matrix)
     assert model._mixing_categories == [{"agegroup": "child"}, {"agegroup": "adult"}]
@@ -97,7 +97,7 @@ def test_single_static_mixing_matrix(backend):
 
     # We should get the default mixing matrix
     ons_res = model._get_step_test()
-    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+    actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
     assert_array_equal(actual_mixing, mixing_matrix)
 
     # Agegroup mixing categories have been added.
@@ -122,11 +122,11 @@ def test_single_dynamic_mixing_matrix(backend):
 
     # We should get the dynamic mixing matrix
     ons_res = model._get_step_test()
-    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+    actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
     assert_array_equal(actual_mixing, 0 * np.array([[2, 3], [5, 7]]))
     # Dynamic matrices should change over time
     ons_res = model._get_step_test(t=123)
-    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+    actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
     assert_array_equal(actual_mixing, 123 * np.array([[2, 3], [5, 7]]))
     # Agegroup mixing categories have been added.
     assert model._mixing_categories == [{"agegroup": "child"}, {"agegroup": "adult"}]
@@ -174,11 +174,11 @@ def test_multiple_static_mixing_matrices(backend):
     # We should get the Kronecker product of the two matrices
 
     ons_res = model._get_step_test()
-    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+    actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
     assert_array_equal(actual_mixing, expected_mixing_matrix)
     # Static matrices shouldn't change over time
     ons_res = model._get_step_test(123)
-    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+    actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
     assert_array_equal(actual_mixing, expected_mixing_matrix)
     # Double check that we calculated the Kronecker product correctly
     kron_mixing = np.kron(agegroup_mixing_matrix, location_mixing_matrix)
@@ -226,12 +226,12 @@ def test_multiple_dynamic_mixing_matrices(backend):
     )
     # We should get the Kronecker product of the two matrices
     ons_res = model._get_step_test(t=1)
-    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+    actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
     assert_array_equal(actual_mixing, expected_mixing_matrix)
     # Double check that we calculated the Kronecker product correctly
     kron_mixing = np.kron(agegroup_mixing_matrix(1, None), location_mixing_matrix(1, None))
     assert_array_equal(expected_mixing_matrix, kron_mixing)
     # Dynamic matrices should change over time
     ons_res = model._get_step_test(t=5)
-    actual_mixing = ons_res["ts_graph_vals"]["mixing_matrix"]
+    actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
     assert_array_equal(actual_mixing, 25 * expected_mixing_matrix)

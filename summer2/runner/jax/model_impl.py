@@ -4,6 +4,8 @@ This is a mess right now!
 """
 
 from functools import partial
+from dataclasses import dataclass
+
 import numpy as np
 
 from jax import lax, jit, numpy as jnp
@@ -56,7 +58,7 @@ def get_force_of_infection(
     return {"infection_density": infection_density, "infection_frequency": infection_frequency}
 
 
-def build_get_infectious_multipliers(runner):
+def build_get_infectious_multipliers(runner, debug=False):
     population_cat_indexer = jnp.array(runner._population_category_indexer)
 
     # FIXME: We are hardcoding this for frequency only right now
@@ -83,6 +85,8 @@ def build_get_infectious_multipliers(runner):
         mixing_matrix = cur_graph_outputs["mixing_matrix"]
         category_populations = compartment_values[population_cat_indexer].sum(axis=1)
 
+        per_strain_out = {}
+
         for strain_idx, strain in enumerate(runner.model._disease_strains):
 
             strain_compartment_infectiousness = compartment_infectiousness[strain]
@@ -104,6 +108,9 @@ def build_get_infectious_multipliers(runner):
                 strain_ifect = strain_values["infection_frequency"]
             elif infect_proc_type == "dens":
                 strain_ifect = strain_values["infection_density"]
+
+            if debug:
+                per_strain_out[strain] = strain_ifect
 
             # FIXME: So we produce strain infection values _per category_
             # (ie not all model compartments, not all infectious compartments)
@@ -132,7 +139,10 @@ def build_get_infectious_multipliers(runner):
                 full_multipliers[strain_ifectcomp_mask] * strain_ifect_bcast[strain_ifectcomp_mask]
             )
 
-        return full_multipliers
+        if debug:
+            return full_multipliers, per_strain_out
+        else:
+            return full_multipliers
 
     return get_infectious_multipliers
 
@@ -372,6 +382,19 @@ def build_get_compartment_infectiousness(model):
     return get_compartment_infectiousness
 
 
+@dataclass
+class StepResults:
+    flow_rates: jnp.array
+    comp_rates: jnp.array
+    comp_vals: jnp.array
+    static_graph_vals: dict
+    ts_graph_vals: dict
+    initial_population: jnp.array
+    model_data: dict
+    infectious_multipliers: jnp.array
+    infect_mul_per_strain: dict
+
+
 def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solver_args=None):
 
     if dyn_params is None:
@@ -526,6 +549,8 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
             "derived_outputs": derived_outputs,
         }  # "model_data": model_data}
 
+    ons_get_inf_mul = build_get_infectious_multipliers(runner, True)
+
     def one_step(parameters: dict = None, t: float = None, comp_vals=None):
 
         static_graph_vals = static_graph_func(parameters=parameters)
@@ -552,16 +577,18 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
         flow_rates, comp_rates, ts_graph_vals = get_rates_debug(
             comp_vals, t, static_graph_vals, model_data
         )
-
-        infect_mul = get_infectious_multipliers(
-            t,
-            comp_vals,
-            ts_graph_vals,
-            compartment_infectiousness,
-        )
+        if get_infectious_multipliers:
+            infect_mul, infect_mul_per_strain = ons_get_inf_mul(
+                t,
+                comp_vals,
+                ts_graph_vals,
+                compartment_infectiousness,
+            )
+        else:
+            infect_mul, infect_mul_per_strain = None, None
 
         # return {"outputs": outputs, "model_data": model_data}
-        return {
+        res = {
             "flow_rates": flow_rates,
             "comp_rates": comp_rates,
             "comp_vals": comp_vals + comp_rates,
@@ -570,7 +597,9 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
             "initial_population": initial_population,
             "model_data": model_data,
             "infectious_multipliers": infect_mul,
+            "infect_mul_per_strain": infect_mul_per_strain,
         }
+        return StepResults(**res)
 
     runner_dict = {
         "get_rates": get_rates,
