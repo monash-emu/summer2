@@ -65,17 +65,24 @@ class ModelBackend:
         )
         self._has_crude_birth = bool(len(self._crude_birth_idx))
 
-        self._has_replacement = False
-        # Replacement flows must be calculated after death flows, store indices here
-        for i, f in self._iter_non_function_flows:
-            if type(f) == flows.ReplacementBirthFlow:
-                self._has_replacement = True
-                self._replacement_flow_idx = i
+        # self._has_replacement = False
+        ## Replacement flows must be calculated after death flows, store indices here
+        # for i, f in self._iter_non_function_flows:
+        #    if type(f) == flows.ReplacementBirthFlow:
+        #        self._has_replacement = True
+        #        self._replacement_flow_idx = i
+
+        # Crude birth flows use population sum rather than a compartment; store indices here
+        self._replacement_flow_idx = np.array(
+            [i for i, f in self._iter_non_function_flows if type(f) == flows.ReplacementBirthFlow],
+            dtype=int,
+        )
+        self._has_replacement = bool(len(self._replacement_flow_idx))
 
         self._precompute_flow_maps()
         self._build_infectious_multipliers_lookup()
 
-    def prepare_static_params(self, parameters: dict, dyn_params: list = None):
+    def _BROKEN_prepare_static_params(self, parameters: dict, dyn_params: list = None):
         """Do all precomputation here"""
 
         parameters = parameters or {}
@@ -100,7 +107,7 @@ class ModelBackend:
         self.static_cg = self.param_frozen_cg.filter(exclude=ts_vars)
         self.run_graph_static = self.static_cg.get_callable()
 
-    def prepare_dynamic(self, param_updates: dict = None):
+    def _BROKEN_prepare_dynamic(self, param_updates: dict = None):
         """Do all precomputation here"""
 
         param_updates = param_updates or {}
@@ -134,7 +141,7 @@ class ModelBackend:
         self._infection_density_flat = np.empty((num_strains, num_cats), dtype=float)
         self._infection_frequency_flat = np.empty((num_strains, num_cats), dtype=float)
 
-    def prepare_to_run(self, parameters: dict = None):
+    def _BROKEN_prepare_to_run(self, parameters: dict = None):
         # FIXME:
         # This is now only used by tests, and should never called in any production code
         if not hasattr(self.model, "_init_pop_dist"):
@@ -275,12 +282,6 @@ class ModelBackend:
         # Find the effective infectious population for the force of infection (FoI) calculations.
         self._mixing_matrix = mixing_matrix = self._graph_values_timestep["mixing_matrix"]
         self._calculate_strain_infection_values(compartment_values, mixing_matrix)
-
-    def _get_mixing_matrix(self, t):
-        # FIXME: Only used by tests, should never be called in real code
-        self.prepare_to_run()
-        self._prepare_time_step(t, self.model.initial_population)
-        return self._mixing_matrix
 
     def get_flow_weights(self):
         """Collate weights for all model flows at the current timestep"""

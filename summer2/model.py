@@ -24,6 +24,7 @@ from summer2.parameters import params
 
 from summer2.parameters.param_impl import finalize_parameters
 from summer2.runner import ModelBackend
+from summer2.runner.jax.model_impl import StepResults
 from summer2.solver import SolverType, solve_ode
 from summer2.stratification import Stratification
 from summer2.utils import get_scenario_start_index, ref_times_to_dti, clean_compartment_values
@@ -414,46 +415,34 @@ class CompartmentalModel:
             expected_flow_count,
         )
 
-    def add_universal_death_flows(self, base_name: str, death_rate: FlowParam):
+    def add_universal_death_flows(self, name: str, death_rate: FlowParam):
         """
         Adds a universal death rate flow to every compartment in the model.
         The number of deaths per compartment will be determined by the product of
         the death rate and the compartment population.
 
-        The base name will be used to create the name of each flow. For example a
-        base name of "universal_death" applied to the "S" compartment will result in a flow called
-        "universal_death_for_S".
-
         Args:
-            base_name: The base name for each new flow.
+            name: The name for the new flow(s).
             death_rate: The fractional death rate per timestep.
-
-        Returns:
-            List[str]: The names of the flows added.
 
         """
 
         # Only allow a single universal death flow with a given name to be added to the model.
-        is_already_used = any([f.name.startswith(base_name) for f in self.flows])
+        is_already_used = any([f.name == name for f in self.flows])
         if is_already_used:
-            msg = f"There is already a universal death flow called '{base_name}' in this model, \
+            msg = f"There is already a universal death flow called '{name}' in this model, \
                 cannot add a second."
             raise ValueError(msg)
 
-        flow_names = []
         for comp_name in self._original_compartment_names:
-            flow_name = f"{base_name}_for_{comp_name}"
-            flow_names.append(flow_name)
             self._add_exit_flow(
                 flows.DeathFlow,
-                flow_name,
+                name,
                 death_rate,
                 comp_name,
                 source_strata={},
                 expected_flow_count=None,
             )
-
-        return flow_names
 
     def _add_exit_flow(
         self,
@@ -883,7 +872,7 @@ class CompartmentalModel:
     Running the model
     """
 
-    def _get_step_test(self, parameters: dict = None):
+    def _get_step_test(self, parameters: dict = None, t: float = None) -> StepResults:
         self._update_compartment_indices()
         self.finalize()
 
@@ -895,7 +884,7 @@ class CompartmentalModel:
 
         jax_run_func, jax_runner_dict = build_run_model(self._backend, base_params=parameters)
 
-        return jax_runner_dict["one_step"](parameters)
+        return jax_runner_dict["one_step"](parameters, t)
 
     def get_runner(self, parameters: dict, dyn_params: List = None, jit=True, **backend_args):
         self._update_compartment_indices()

@@ -4,6 +4,8 @@ This is a mess right now!
 """
 
 from functools import partial
+from dataclasses import dataclass
+
 import numpy as np
 
 from jax import lax, jit, numpy as jnp
@@ -37,7 +39,7 @@ def get_force_of_infection(
     """
     Calculate the force of infection for both frequency-dependent and density-dependent transmission assumptions.
     Considers only one strain at this stage, with the strain logic sitting outside of this function.
-    
+
     Args:
         strain_infectious_values: Vector of compartment size values for the infectious compartments (relevant to the strain considered)
         strain_compartment_infectiousness: Vector of infectiousness scaling values with same length as strain_infectious_values
@@ -56,11 +58,15 @@ def get_force_of_infection(
     return {"infection_density": infection_density, "infection_frequency": infection_frequency}
 
 
-def build_get_infectious_multipliers(runner):
+def build_get_infectious_multipliers(runner, debug=False):
     population_cat_indexer = jnp.array(runner._population_category_indexer)
 
     # FIXME: We are hardcoding this for frequency only right now
     infect_proc_type = runner._infection_process_type
+
+    # We use this elsewhere to enable testing simple models without an infection process
+    if infect_proc_type is None:
+        return None
 
     if infect_proc_type == "both":
         raise NotImplementedError("No support for mixed infection frequency/density")
@@ -78,6 +84,8 @@ def build_get_infectious_multipliers(runner):
 
         mixing_matrix = cur_graph_outputs["mixing_matrix"]
         category_populations = compartment_values[population_cat_indexer].sum(axis=1)
+
+        per_strain_out = {}
 
         for strain_idx, strain in enumerate(runner.model._disease_strains):
 
@@ -100,6 +108,9 @@ def build_get_infectious_multipliers(runner):
                 strain_ifect = strain_values["infection_frequency"]
             elif infect_proc_type == "dens":
                 strain_ifect = strain_values["infection_density"]
+
+            if debug:
+                per_strain_out[strain] = strain_ifect
 
             # FIXME: So we produce strain infection values _per category_
             # (ie not all model compartments, not all infectious compartments)
@@ -128,7 +139,10 @@ def build_get_infectious_multipliers(runner):
                 full_multipliers[strain_ifectcomp_mask] * strain_ifect_bcast[strain_ifectcomp_mask]
             )
 
-        return full_multipliers
+        if debug:
+            return full_multipliers, per_strain_out
+        else:
+            return full_multipliers
 
     return get_infectious_multipliers
 
@@ -171,14 +185,14 @@ def _build_calc_computed_values(runner):
     return calc_computed_values
 
 
-def build_get_flow_rates(runner, ts_graph_func):
+def build_get_flow_rates(runner, ts_graph_func, get_infectious_multipliers=None, debug=False):
 
     # calc_computed_values = build_calc_computed_values(runner)
     get_flow_weights = build_get_flow_weights(runner)
 
     infect_proc_type = runner._infection_process_type
-    if infect_proc_type:
-        get_infectious_multipliers = build_get_infectious_multipliers(runner)
+    # if infect_proc_type:
+    #    get_infectious_multipliers = build_get_infectious_multipliers(runner)
 
     population_idx = np.array(runner.population_idx)
     infectious_flow_indices = jnp.array(runner.infectious_flow_indices)
@@ -222,10 +236,19 @@ def build_get_flow_rates(runner, ts_graph_func):
             # ReplacementBirthFlow depends on death flows already being calculated; update here
         if runner._has_replacement:
             # Only calculate timestep_deaths if we use replacement, it's expensive...
+            # if len(runner.death_flow_indices):
             _timestep_deaths = flow_rates[runner.death_flow_indices].sum()
-            flow_rates = flow_rates.at[runner._replacement_flow_idx].set(_timestep_deaths)
+            # else:
+            #    _timestep_deaths = 0.0
+            # flow_rates = flow_rates.at[runner._replacement_flow_idx].set(0.0)  # _timestep_deaths)
+            flow_rates = flow_rates.at[runner._replacement_flow_idx].set(
+                flow_rates[runner._replacement_flow_idx] * _timestep_deaths
+            )
 
-        return flow_rates, ts_graph_vals["computed_values"]
+        if debug:
+            return flow_rates, ts_graph_vals["computed_values"], ts_graph_vals
+        else:
+            return flow_rates, ts_graph_vals["computed_values"]
 
     return get_flow_rates
 
@@ -247,7 +270,12 @@ def build_get_compartment_rates(runner):
 
 
 def build_get_rates(runner, ts_graph_func):
-    get_flow_rates = build_get_flow_rates(runner, ts_graph_func)
+
+    get_infectious_multipliers = build_get_infectious_multipliers(runner)
+    get_flow_rates = build_get_flow_rates(runner, ts_graph_func, get_infectious_multipliers)
+    get_flow_rates_debug = build_get_flow_rates(
+        runner, ts_graph_func, get_infectious_multipliers, True
+    )
     get_compartment_rates = build_get_compartment_rates(runner)
 
     def get_rates(compartment_values, time, static_graph_vals, model_data):
@@ -256,7 +284,20 @@ def build_get_rates(runner, ts_graph_func):
 
         return flow_rates, comp_rates
 
-    return {"get_flow_rates": get_flow_rates, "get_rates": get_rates}
+    def get_rates_debug(compartment_values, time, static_graph_vals, model_data):
+        flow_rates, _, cur_ts_vals = get_flow_rates_debug(
+            compartment_values, time, static_graph_vals, model_data
+        )
+        comp_rates = get_compartment_rates(compartment_values, flow_rates)
+
+        return flow_rates, comp_rates, cur_ts_vals
+
+    return {
+        "get_flow_rates": get_flow_rates,
+        "get_rates": get_rates,
+        "get_rates_debug": get_rates_debug,
+        "get_infectious_multipliers": get_infectious_multipliers,
+    }
 
 
 def get_accumulation_maps(runner):
@@ -341,6 +382,19 @@ def build_get_compartment_infectiousness(model):
     return get_compartment_infectiousness
 
 
+@dataclass
+class StepResults:
+    flow_rates: jnp.array
+    comp_rates: jnp.array
+    comp_vals: jnp.array
+    static_graph_vals: dict
+    ts_graph_vals: dict
+    initial_population: jnp.array
+    model_data: dict
+    infectious_multipliers: jnp.array
+    infect_mul_per_strain: dict
+
+
 def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solver_args=None):
 
     if dyn_params is None:
@@ -378,6 +432,8 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
     rates_funcs = build_get_rates(runner, timestep_graph_func)
     get_rates = rates_funcs["get_rates"]
     get_flow_rates = rates_funcs["get_flow_rates"]
+    get_rates_debug = rates_funcs["get_rates_debug"]
+    get_infectious_multipliers = rates_funcs["get_infectious_multipliers"]
 
     # from jax import vmap
 
@@ -493,12 +549,19 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
             "derived_outputs": derived_outputs,
         }  # "model_data": model_data}
 
-    def one_step(parameters: dict = None):
-        # A (hopefully) fast-compiling single euler step of the model;
-        # useful for testing and debugging
+    ons_get_inf_mul = build_get_infectious_multipliers(runner, True)
+
+    def one_step(parameters: dict = None, t: float = None, comp_vals=None):
 
         static_graph_vals = static_graph_func(parameters=parameters)
-        initial_population = calc_initial_pop(static_graph_vals)
+
+        if t is None:
+            t = runner.model.times[0]
+
+        if comp_vals is None:
+            comp_vals = calc_initial_pop(static_graph_vals)
+
+        initial_population = comp_vals
 
         static_flow_weights = jnp.zeros(len(runner.model.flows))
         for k, v in static_flow_map.items():
@@ -511,18 +574,32 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
             "static_flow_weights": static_flow_weights,
         }
 
-        flow_rates, comp_rates = get_rates(
-            initial_population, runner.model.times[0], static_graph_vals, model_data
+        flow_rates, comp_rates, ts_graph_vals = get_rates_debug(
+            comp_vals, t, static_graph_vals, model_data
         )
+        if get_infectious_multipliers:
+            infect_mul, infect_mul_per_strain = ons_get_inf_mul(
+                t,
+                comp_vals,
+                ts_graph_vals,
+                compartment_infectiousness,
+            )
+        else:
+            infect_mul, infect_mul_per_strain = None, None
 
         # return {"outputs": outputs, "model_data": model_data}
-        return {
+        res = {
             "flow_rates": flow_rates,
             "comp_rates": comp_rates,
-            "initial_population": initial_population,
+            "comp_vals": comp_vals + comp_rates,
             "static_graph_vals": static_graph_vals,
+            "ts_graph_vals": ts_graph_vals,
+            "initial_population": initial_population,
             "model_data": model_data,
-        }  # "model_data": model_data}
+            "infectious_multipliers": infect_mul,
+            "infect_mul_per_strain": infect_mul_per_strain,
+        }
+        return StepResults(**res)
 
     runner_dict = {
         "get_rates": get_rates,
@@ -536,8 +613,9 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
         "timestep_cg": timestep_cg,
         "static_cg": static_cg,
         "static_graph_func": static_graph_func,
-        "one_step": one_step,  # single step debugging/testing function
-        "derived_outputs_cg": do_cg,  # the computegraph used for derived outputs
+        "one_step": one_step,
+        "derived_outputs_cg": do_cg,
+        "get_rates_debug": rates_funcs["get_rates_debug"],
     }
 
     return run_model, runner_dict

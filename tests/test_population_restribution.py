@@ -40,7 +40,7 @@ def build_model():
 def test_split_single_filter():
     model = build_model()
 
-    orig_init_pop = model._get_step_test()["initial_population"]
+    orig_init_pop = model._get_step_test().initial_population
     s_young_orig = orig_init_pop[
         model.query_compartments({"name": "S", "age": "young"}, as_idx=True)
     ].copy()
@@ -50,7 +50,7 @@ def test_split_single_filter():
         "vacc", {"age": "old"}, {"one_dose": 0.7, "two_dose": 0.2, "unvacc": 0.1}
     )
 
-    init_pop = model._get_step_test()["initial_population"]
+    init_pop = model._get_step_test().initial_population
 
     # Check the total population hasn't changed
     np.testing.assert_almost_equal(init_pop.sum(), 1000.0)
@@ -72,7 +72,7 @@ def test_split_single_filter():
 def test_split_multi_filter():
     model = build_model()
 
-    init_pop_orig = model._get_step_test()["initial_population"]
+    init_pop_orig = model._get_step_test().initial_population
 
     s_young_orig = init_pop_orig[
         model.query_compartments({"name": "S", "age": "young"}, as_idx=True)
@@ -86,7 +86,7 @@ def test_split_multi_filter():
         "vacc", {"age": "old", "loc": "urban"}, {"one_dose": 0.7, "two_dose": 0.2, "unvacc": 0.1}
     )
 
-    init_pop = model._get_step_test()["initial_population"]
+    init_pop = model._get_step_test().initial_population
     # Check the total population hasn't changed
     np.testing.assert_almost_equal(init_pop.sum(), 1000.0)
 
