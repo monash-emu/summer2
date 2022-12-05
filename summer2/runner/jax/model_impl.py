@@ -496,6 +496,13 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
 
     model_times = jnp.array(m.times)
 
+    # In the case of parameters used by derived outputs that are _not_ supplised in dyn_params,
+    # we need to capture these from the original base_params
+    do_params = set(
+        [v.key for v in m._do_tracker_graph.get_input_variables() if v.source == "parameters"]
+    )
+    do_base_params = {k: v for k, v in base_params.items() if k in do_params}
+
     def run_model(parameters):
 
         static_graph_vals = static_graph_func(parameters=parameters)
@@ -539,8 +546,11 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
 
         model_variables = {"outputs": outputs, "flows": out_flows, "computed_values": out_cv}
 
+        do_full_params = do_base_params.copy()
+        do_full_params.update(parameters)
+
         derived_outputs = calc_derived_outputs(
-            parameters=parameters, model_variables=model_variables
+            parameters=do_full_params, model_variables=model_variables
         )
 
         # return {"outputs": outputs, "model_data": model_data}
