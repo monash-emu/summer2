@@ -37,7 +37,7 @@ installed under Linux, OSX, and WSL environments.  If you are using Windows, you
 via WSL, or run the following command after installing
 
 ```bash
-pip install jax[cpu]==0.3.14 -f https://whls.blob.core.windows.net/unstable/index.html
+pip install jax[cpu]==0.3.24 -f https://whls.blob.core.windows.net/unstable/index.html
 ```
 
 Then you can now use the library to build and run models. See [here](http://summerepi.com/examples) for some code examples.
