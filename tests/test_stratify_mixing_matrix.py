@@ -177,7 +177,7 @@ def test_multiple_static_mixing_matrices(backend):
     actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
     assert_array_equal(actual_mixing, expected_mixing_matrix)
     # Static matrices shouldn't change over time
-    ons_res = model._get_step_test(123)
+    ons_res = model._get_step_test(t=123)
     actual_mixing = ons_res.ts_graph_vals["mixing_matrix"]
     assert_array_equal(actual_mixing, expected_mixing_matrix)
     # Double check that we calculated the Kronecker product correctly
