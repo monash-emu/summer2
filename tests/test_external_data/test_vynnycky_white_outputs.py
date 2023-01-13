@@ -1,5 +1,6 @@
 import pandas as pd
 from pathlib import Path
+import numpy as np
 
 from summer2 import CompartmentalModel
 from summer2.parameters import Parameter, DerivedOutput
@@ -416,3 +417,67 @@ def test_4_06():
 
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
+
+def test_4_12():
+
+    config = {
+        "end_time": 20.,
+        "total_population": 1.,
+        "infectious_seed": 0.001,
+    }
+    parameters = {
+        "infectious_period": 1.,
+    }
+
+    compartments = (
+        "susceptible",
+        "infectious",
+        "recovered",
+    )
+    analysis_times = (0., config["end_time"])
+    model = CompartmentalModel(
+        times=analysis_times,
+        compartments=compartments,
+        infectious_compartments=["infectious"],
+        timestep=0.01,
+    )
+    model.set_initial_population(
+        distribution=
+        {
+            "susceptible": config["total_population"] - config["infectious_seed"], 
+            "infectious": config["infectious_seed"],
+        }
+    )
+    infectious_period = Parameter("infectious_period")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("r0") / infectious_period,
+        source="susceptible", 
+        dest="infectious",
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / infectious_period,
+        source="infectious", 
+        dest="recovered",
+    )
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_12_outputs.csv", index_col=0)
+    r0s = np.linspace(0.99, 15., 100)
+    model_results = []
+    for r0 in r0s:
+        parameters.update({"r0": r0})
+        model.run(parameters=parameters, solver="euler")
+        model_results.append(1. - model.get_outputs_df()["susceptible"].iloc[-1])
+
+
+    model_results = pd.DataFrame(model_results)
+
+    model_results.index = model_results.index.astype(int)
+    expected_results.columns = expected_results.columns.astype(int)
+
+    differences = model_results - expected_results
+
+    assert max(differences.abs()) < TOLERANCE
+
+test_4_12()
