@@ -332,3 +332,87 @@ def test_4_05():
     expected_results.columns = [float(col) for col in expected_results.columns]
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
+
+def test_4_06():
+
+    config = {
+        "total_population": 1e5,
+        "infectious_seed": 1.,
+        "end_time": 120.,
+    }
+
+    compartments = (
+        "Susceptible", 
+        "Pre-infectious", 
+        "Infectious", 
+        "Immune"
+    )
+    model = CompartmentalModel(
+        times=(0., config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=("Infectious",),
+    )
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["total_population"] - config["infectious_seed"], 
+            "Infectious": config["infectious_seed"]
+        }
+    )
+    infectious_period = Parameter("infectious_period")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("r0") / infectious_period,
+        source="Susceptible",
+        dest="Pre-infectious"
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("latent_period"),
+        source="Pre-infectious", 
+        dest="Infectious"
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / infectious_period,
+        source="Infectious", 
+        dest="Immune"
+    )
+    model.request_output_for_flow(
+        name="incidence", 
+        flow_name="progression",
+        raw_results=True,
+    )
+
+    # Run for measles
+    parameters = {
+        "r0": 13.,
+        "latent_period": 8.,
+        "infectious_period": 7.,
+    }
+    model.run(parameters=parameters, solver="euler")
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_06_measles_outputs.csv", index_col=0)
+    model_results = pd.DataFrame()
+    model_results["Prevalence of infectious individuals"] = model.get_outputs_df()["Infectious"]
+    model_results["New infectious individuals/day"] = model.get_derived_outputs_df()["incidence"]
+    model_results["Cumulative number of infectious individuals"] = model_results.loc[:, "New infectious individuals/day"].cumsum()
+
+    differences = model_results - expected_results
+    assert differences.abs().max().max() < TOLERANCE
+
+    # Run for flu
+    parameters = {
+        "r0": 2.,
+        "latent_period": 2.,
+        "infectious_period": 2.,
+    }
+    model.run(parameters=parameters, solver="euler")
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_06_flu_outputs.csv", index_col=0)
+    model_results = pd.DataFrame()
+    model_results["Prevalence of infectious individuals"] = model.get_outputs_df()["Infectious"]
+    model_results["New infectious individuals/day"] = model.get_derived_outputs_df()["incidence"]
+    model_results["Cumulative number of infectious individuals"] = model_results.loc[:, "New infectious individuals/day"].cumsum()
+
+    differences = model_results - expected_results
+    assert differences.abs().max().max() < TOLERANCE
