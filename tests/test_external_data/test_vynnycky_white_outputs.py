@@ -1,9 +1,10 @@
+from jax import numpy as jnp
 import pandas as pd
 from pathlib import Path
 import numpy as np
 
-from summer2 import CompartmentalModel
-from summer2.parameters import Parameter, DerivedOutput
+from summer2 import CompartmentalModel, Stratification
+from summer2.parameters import Parameter, DerivedOutput, Time, Function
 
 
 TEST_OUTPUTS_PATH = Path(__file__).with_name("vynnycky_white_outputs")
@@ -735,4 +736,127 @@ def test_4_26():
         model_results[rate] = model.get_derived_outputs_df()["incidence_rate"]
 
     differences = model_results - expected_results
+    assert differences.abs().max().max() < TOLERANCE
+
+def test_4_29():
+
+    config = {
+        "total_population": 1e5,
+        "infectious_seed": 1.,
+        "start_time": -108.,
+        "end_time": 60.,
+    }
+    parameters = {
+        "r0": 13.,
+        "latent_period": 8.,
+        "infectious_period": 7.,
+        "life_expectancy": 70.,
+    }
+
+    compartments = (
+        "Susceptible", 
+        "Pre-infectious", 
+        "Infectious", 
+        "Immune"
+    )
+    model = CompartmentalModel(
+        times=(
+            config["start_time"] * 365.,
+            config["end_time"] * 365.,
+        ),
+        compartments=compartments,
+        infectious_compartments=["Infectious"],
+    )
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["total_population"] - config["infectious_seed"], 
+            "Infectious": config["infectious_seed"],
+        }
+    )
+    infectious_period = Parameter("infectious_period")
+    life_expectancy = Parameter("life_expectancy")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("r0") / infectious_period,
+        source="Susceptible", 
+        dest="Pre-infectious"
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("latent_period"),
+        source="Pre-infectious", 
+        dest="Infectious"
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / infectious_period,
+        source="Infectious", 
+        dest="Immune",
+    )
+    model.add_universal_death_flows(
+        "universal_death",
+        death_rate=1. / life_expectancy / 365.,
+    )
+    model.add_crude_birth_flow(
+        "births",
+        1. / life_expectancy / 365.,
+        "Susceptible",
+    )
+    model.request_output_for_compartments(
+        "total_population",
+        compartments,
+    )
+    model.request_output_for_flow(
+        name="incidence",
+        flow_name="progression",
+    )
+    model.request_function_output(
+        name="incidence_rate",
+        func=DerivedOutput("incidence") / DerivedOutput("total_population") * 1e5,
+    )
+    vacc_strat = Stratification(
+        "vaccination",
+        ["vaccinated", "unvaccinated"],
+        ["Susceptible"],
+    )
+    vacc_strat.set_population_split(
+        {
+            "vaccinated": 0.,
+            "unvaccinated": 1.,
+        }
+    )
+    vacc_strat.set_flow_adjustments(
+        flow_name="infection",
+        adjustments={
+            "vaccinated": 0.,
+            "unvaccinated": 1.,
+        },
+    )
+    
+    def step_up(time, vacc_coverage):
+        return jnp.where(time > 0., vacc_coverage, 0.)
+    
+    def step_down(time, vacc_coverage):
+        return jnp.where(time > 0., 1. - vacc_coverage, 1.)
+    
+    vacc_strat.set_flow_adjustments(
+        flow_name="births",
+        adjustments={
+            "vaccinated": Function(step_up, [Time, Parameter("vacc_coverage")]),
+            "unvaccinated": Function(step_down, [Time, Parameter("vacc_coverage")]),
+        },
+    )
+    model.stratify_with(vacc_strat)
+
+    coverage_values = (0.5, 0.8, 0.9)
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_29_outputs.csv", index_col=0)
+    expected_results.columns = coverage_values
+
+    model_results = pd.DataFrame(columns=coverage_values)
+    for coverage in coverage_values:
+        parameters.update({"vacc_coverage": coverage})
+        model.run(parameters=parameters, solver="euler")
+        model_results[coverage] = model.get_derived_outputs_df()["incidence_rate"]
+
+    differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
