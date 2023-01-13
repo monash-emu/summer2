@@ -75,11 +75,6 @@ def test_4_03():
         "infectious_seed": 1.0,
         "end_time": 120.0,
     }
-    parameters = {
-        "r0": 13.0,
-        "latent_period": 7.0,
-        "infectious_period": 8.0,
-    }
 
     compartments = ("Susceptible", "Pre-infectious", "Infectious", "Immune")
     model = CompartmentalModel(
@@ -119,12 +114,18 @@ def test_4_03():
         name="suscept_prop", func=DerivedOutput("n_suscept") / config["total_population"]
     )
     model.request_function_output(
-        name="Rn", func=parameters["r0"] * DerivedOutput("suscept_prop")
+        name="Rn", func=Parameter("r0") * DerivedOutput("suscept_prop")
     )
 
+    # Run for measles
+    parameters = {
+        "r0": 13.0,
+        "latent_period": 7.0,
+        "infectious_period": 8.0,
+    }
     model.run(parameters=parameters, solver="euler")
 
-    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_03_outputs.csv", index_col=0)
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_03_measles_outputs.csv", index_col=0)
     model_results = pd.concat(
         (
             model.get_outputs_df()["Susceptible"] / config["total_population"],
@@ -133,6 +134,25 @@ def test_4_03():
         ),
         axis=1,
     )
+    differences = model_results - expected_results
+    assert differences.abs().max().max() < TOLERANCE
 
+    # Run for flu
+    parameters = {
+        "r0": 2.,
+        "infectious_period": 2.,
+        "latent_period": 2.,
+    }
+    model.run(parameters=parameters, solver="euler")
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_03_flu_outputs.csv", index_col=0)
+    model_results = pd.concat(
+        (
+            model.get_outputs_df()["Susceptible"] / config["total_population"],
+            model.get_derived_outputs_df()["incidence"],
+            model.get_derived_outputs_df()["Rn"],
+        ),
+        axis=1,
+    )
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
