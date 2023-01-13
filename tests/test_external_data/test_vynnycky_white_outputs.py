@@ -323,15 +323,15 @@ def test_4_05():
         }
     )
 
-    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_05_flu_outputs.csv", index_col=0)
-    model_results = pd.DataFrame()
     immune_props = (0., 0.45, 0.49, 0.5, 0.51, 0.55)
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_05_flu_outputs.csv", index_col=0)
+    expected_results.columns = immune_props
+    model_results = pd.DataFrame()
     for immune_prop in immune_props:
         parameters.update({"prop_recovered": immune_prop})
         model.run(parameters=parameters, solver="euler")
         model_results[immune_prop] = model.get_derived_outputs_df()["incidence"]
 
-    expected_results.columns = [float(col) for col in expected_results.columns]
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
 
@@ -860,3 +860,69 @@ def test_4_29():
 
     differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
+
+
+def test_4_31_sis():
+
+    config = {
+        "start_time": 0.,
+        "end_time": 50. * 365.,
+        "population": 1.,
+        "seed": 1e-5,
+    }
+    parameters = {
+        "contact_rate": 1.5 / 60.,
+        "recovery": 1. / 60.,
+    }
+
+    compartments = (
+        "susceptible",
+        "infectious",
+    )
+    analysis_times = (
+        config["start_time"], 
+        config["end_time"],
+    )
+    model = CompartmentalModel(
+        times=analysis_times,
+        compartments=compartments,
+        infectious_compartments=["infectious"],
+    )
+    model.set_initial_population(
+        distribution=
+        {
+            "susceptible": config["population"] - config["seed"], 
+            "infectious": config["seed"],
+        }
+    )
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("contact_rate"),
+        source="susceptible", 
+        dest="infectious",
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=Parameter("recovery"),
+        source="infectious", 
+        dest="susceptible",
+    )
+    model.request_output_for_flow(
+        "incidence",
+        "infection",
+        save_results=False,
+    )
+    model.request_function_output(
+        "incidence_rate",
+        func=DerivedOutput("incidence") * 1e5 * 30,
+    )
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_31_sis_outputs.csv", index_col=0)
+    model.run(parameters=parameters, solver="euler")
+    model_results = model.get_derived_outputs_df()
+    model_results.index = model_results.index / 365.
+    expected_results.index = [round(i, 5) for i in expected_results.index]
+    model_results.index = [round(i, 5) for i in model_results.index]
+
+    differences = expected_results - model_results
+    assert differences["incidence_rate"].abs().max() < TOLERANCE
