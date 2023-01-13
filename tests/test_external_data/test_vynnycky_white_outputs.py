@@ -118,6 +118,9 @@ def test_4_03():
     model.request_function_output(
         name="suscept_prop", func=DerivedOutput("n_suscept") / config["total_population"]
     )
+    model.request_function_output(
+        name="Rn", func=parameters["r0"] * DerivedOutput("suscept_prop")
+    )
 
     model.run(parameters=parameters, solver="euler")
 
@@ -126,6 +129,7 @@ def test_4_03():
         (
             model.get_outputs_df()["Susceptible"] / config["total_population"],
             model.get_derived_outputs_df()["incidence"],
+            model.get_derived_outputs_df()["Rn"],
         ),
         axis=1,
     )
