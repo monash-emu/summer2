@@ -551,3 +551,103 @@ def test_4_17():
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_17_outputs.csv", index_col=0)["incidence"]
     differences = model_results - expected_results
     assert max(differences.abs()) < TOLERANCE
+
+
+def test_4_19():
+    
+    config = {
+        "end_time": 25550.,
+        "total_population": 1e5,
+        "infectious_seed": 1.,
+    }
+    parameters = {
+        "latent_period": 8.,
+        "infectious_period": 7.,
+        "r0": 13.,
+        "life_expectancy": 70.,
+    }
+
+    compartments = (
+        "Susceptible", 
+        "Pre-infectious", 
+        "Infectious", 
+        "Immune"
+    )
+    model = CompartmentalModel(
+        times=(0., config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=["Infectious"],
+    )
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["total_population"] - config["infectious_seed"],
+            "Infectious": config["infectious_seed"],
+        }
+    )
+    infectious_period = Parameter("infectious_period")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("r0") / infectious_period,
+        source="Susceptible", 
+        dest="Pre-infectious"
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("latent_period"),
+        source="Pre-infectious", 
+        dest="Infectious"
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / infectious_period,
+        source="Infectious", 
+        dest="Immune",
+    )
+    model.add_replacement_birth_flow(
+        "births",
+        "Susceptible",
+    )
+    model.add_universal_death_flows(
+        "universal_death",
+        death_rate=1. / Parameter("life_expectancy") / 365.,
+    )
+    model.request_output_for_flow(
+        name="incidence", 
+        flow_name="progression",
+    )
+    model.request_output_for_compartments(
+        name="total_population",
+        compartments=compartments,
+    )
+    model.request_output_for_compartments(
+        name="susceptible_compartment",
+        compartments=["Susceptible"],
+    )
+    model.request_output_for_compartments(
+        name="immune_compartment",
+        compartments=["Immune"],
+    )
+    total_pop = DerivedOutput("total_population")
+    model.request_function_output(
+        name="incidence_rate",
+        func=DerivedOutput("incidence") / total_pop * 1e5,
+    )
+    model.request_function_output(
+        name="susceptible_prop",
+        func=DerivedOutput("susceptible_compartment") / total_pop,
+    )
+    model.request_function_output(
+        name="immune_prop",
+        func=DerivedOutput("immune_compartment") / total_pop,
+    )
+    model.request_function_output(
+        name="R_n",
+        func=DerivedOutput("susceptible_prop") * Parameter("r0"),
+    )
+    
+    model.run(parameters=parameters, solver="euler")
+    model_results = model.get_derived_outputs_df()
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_19_outputs.csv", index_col=0)
+
+    differences = model_results - expected_results
+    assert differences.abs().max().max() < TOLERANCE
