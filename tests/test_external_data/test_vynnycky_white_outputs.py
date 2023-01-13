@@ -245,3 +245,90 @@ def test_4_04():
     )
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
+
+def test_4_05():
+
+    config = {
+        "total_population": 1e5,
+        "infectious_seed": 1.,
+        "end_time": 2e3,
+    }
+    parameters = {
+        "r0": 13.,
+        "latent_period": 8.,
+        "infectious_period": 7.,
+    }
+
+    compartments = (
+        "Susceptible", 
+        "Pre-infectious", 
+        "Infectious", 
+        "Immune"
+    )
+    model = CompartmentalModel(
+        times=(0., config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=["Infectious"],
+    )
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["total_population"] * (1. - Parameter("prop_recovered")) - config["infectious_seed"], 
+            "Infectious": config["infectious_seed"],
+            "Immune": config["total_population"] * Parameter("prop_recovered"),
+        }
+    )
+    infectious_period = Parameter("infectious_period")
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("r0") / infectious_period,
+        source="Susceptible",
+        dest="Pre-infectious"
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("latent_period"),
+        source="Pre-infectious", 
+        dest="Infectious"
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / infectious_period,
+        source="Infectious", 
+        dest="Immune"
+    )
+    model.request_output_for_flow(
+        name="incidence", 
+        flow_name="progression"
+    )
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_05_measles_outputs.csv", index_col=0)
+    model_results = pd.DataFrame()
+    immune_props = (0., 0.9, 0.92, 0.923, 0.93, 0.95)
+    for immune_prop in immune_props:
+        parameters.update({"prop_recovered": immune_prop})
+        model.run(parameters=parameters, solver="euler")
+        model_results[immune_prop] = model.get_derived_outputs_df()["incidence"]
+
+    expected_results.columns = [float(col) for col in expected_results.columns]
+    differences = model_results - expected_results
+    assert differences.abs().max().max() < TOLERANCE
+
+    parameters.update(
+        {
+            "r0": 2.,
+            "latent_period": 2.,
+            "infectious_period": 2.,
+        }
+    )
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_05_flu_outputs.csv", index_col=0)
+    model_results = pd.DataFrame()
+    immune_props = (0., 0.45, 0.49, 0.5, 0.51, 0.55)
+    for immune_prop in immune_props:
+        parameters.update({"prop_recovered": immune_prop})
+        model.run(parameters=parameters, solver="euler")
+        model_results[immune_prop] = model.get_derived_outputs_df()["incidence"]
+
+    expected_results.columns = [float(col) for col in expected_results.columns]
+    differences = model_results - expected_results
+    assert differences.abs().max().max() < TOLERANCE
