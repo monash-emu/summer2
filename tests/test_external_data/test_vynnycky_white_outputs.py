@@ -225,3 +225,23 @@ def test_4_04():
     )
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
+
+    parameters = {
+        "r0": 2.,
+        "infectious_period": 2.,
+        "latent_period": 2.,
+    }
+
+    model.run(parameters=parameters, solver="euler")
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_04_flu_outputs.csv", index_col=0)
+    model_results = pd.concat(
+        (
+            model.get_outputs_df()["Susceptible"] / config["total_population"], 
+            model.get_outputs_df()["Immune"] / config["total_population"], 
+            model.get_derived_outputs_df()["incidence"],
+        ), 
+        axis=1
+    )
+    differences = model_results - expected_results
+    assert differences.abs().max().max() < TOLERANCE
