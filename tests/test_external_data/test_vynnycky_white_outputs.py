@@ -462,22 +462,19 @@ def test_4_12():
         dest="recovered",
     )
 
-    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_12_outputs.csv", index_col=0)
     r0s = np.linspace(0.99, 15., 100)
-    model_results = []
+    expected_results = pd.read_csv(
+        TEST_OUTPUTS_PATH / "4_12_outputs.csv",
+        index_col=0
+    )["0"]
+    expected_results.index = r0s
+    model_results = pd.Series(index=r0s, dtype=float)
     for r0 in r0s:
         parameters.update({"r0": r0})
         model.run(parameters=parameters, solver="euler")
-        model_results.append(1. - model.get_outputs_df()["susceptible"].iloc[-1])
-
-
-    model_results = pd.DataFrame(model_results)
-
-    model_results.index = model_results.index.astype(int)
-    expected_results.columns = expected_results.columns.astype(int)
+        model_results[r0] = 1. - model.get_outputs_df().loc[config["end_time"], "susceptible"]
 
     differences = model_results - expected_results
-
     assert max(differences.abs()) < TOLERANCE
 
 test_4_12()
