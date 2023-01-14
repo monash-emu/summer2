@@ -1214,3 +1214,71 @@ def test_5_13():
 
     differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
+
+
+def test_8_05():
+
+    config = {
+        "start_time": 0.,
+        "end_time": 10. * 365.,
+        "population": 1.,
+        "seed": 0.01,
+    }
+    parameters = {
+        "recovery": 6. / 365.,
+        "contact_rate": 0.75 / 365.,
+    }
+
+    compartments = (
+        "susceptible",
+        "infectious",
+    )
+    analysis_times = (
+        config["start_time"], 
+        config["end_time"],
+    )
+    model = CompartmentalModel(
+        times=analysis_times,
+        compartments=compartments,
+        infectious_compartments=["infectious"],
+    )
+    model.set_initial_population(
+        distribution=
+        {
+            "susceptible": config["population"] - config["seed"], 
+            "infectious": config["seed"],
+        }
+    )
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("contact_rate"),
+        source="susceptible", 
+        dest="infectious",
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=Parameter("recovery"),
+        source="infectious", 
+        dest="susceptible",
+    )
+    model.request_output_for_compartments(
+        "infectious",
+        ["infectious"],
+        save_results=False,
+    )
+    model.request_output_for_compartments(
+        "total",
+        compartments,
+        save_results=False,
+    )
+    model.request_function_output(
+        "prevalence",
+        DerivedOutput("infectious") / DerivedOutput("total")
+    )
+
+    expected_outputs = pd.read_csv(TEST_OUTPUTS_PATH / "8_05_outputs.csv", index_col=0)["prevalence"]
+    model.run(parameters=parameters, solver="euler")
+    model_outputs = model.get_derived_outputs_df()["prevalence"]
+
+    differences = expected_outputs - model_outputs
+    assert max(differences.abs()) < TOLERANCE
