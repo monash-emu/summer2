@@ -1529,14 +1529,11 @@ def test_8_09():
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_09_outputs.csv", index_col=0)
     low_change_rates = np.concatenate((np.linspace(2., 1., 21), np.linspace(0.9, 0., 6)))
     output_groups = ["Overall", "Low", "High"]
-    model_results = pd.DataFrame(index=low_change_rates, columns=output_groups)
-    for low_change in low_change_rates:
+    model_results = pd.DataFrame(index=range(len(low_change_rates)), columns=output_groups)
+    for i_change, low_change in enumerate(low_change_rates):
         parameters.update({"low_partner_change": low_change})
         model.run(parameters=parameters, solver="euler")
-        model_results.loc[low_change] = model.get_derived_outputs_df().loc[config["end_time"], :] * 100.
-
-    expected_results.index = [round(i, 5) for i in expected_results.index]
-    model_results.index = [round(i, 5) for i in model_results.index]
+        model_results.loc[i_change] = model.get_derived_outputs_df().loc[config["end_time"], :] * 100.
 
     differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
