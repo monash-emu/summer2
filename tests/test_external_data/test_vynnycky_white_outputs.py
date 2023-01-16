@@ -164,7 +164,7 @@ def test_4_04():
 
     config = {
         "total_population": 1e5,
-        "infectious_seed": 1.,  # Not specified in text
+        "infectious_seed": 1.,
         "end_time": 120.,
     }
     parameters = {
@@ -223,7 +223,7 @@ def test_4_04():
             model.get_outputs_df()["Immune"] / config["total_population"], 
             model.get_derived_outputs_df()["incidence"],
         ), 
-        axis=1
+        axis=1,
     )
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
@@ -243,7 +243,7 @@ def test_4_04():
             model.get_outputs_df()["Immune"] / config["total_population"], 
             model.get_derived_outputs_df()["incidence"],
         ), 
-        axis=1
+        axis=1,
     )
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
@@ -309,9 +309,8 @@ def test_4_05():
     for immune_prop in immune_props:
         parameters.update({"prop_recovered": immune_prop})
         model.run(parameters=parameters, solver="euler")
-        model_results[immune_prop] = model.get_derived_outputs_df()["incidence"]
+        model_results[str(immune_prop)] = model.get_derived_outputs_df()["incidence"]
 
-    expected_results.columns = [float(col) for col in expected_results.columns]
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
 
@@ -325,12 +324,11 @@ def test_4_05():
 
     immune_props = (0., 0.45, 0.49, 0.5, 0.51, 0.55)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_05_flu_outputs.csv", index_col=0)
-    expected_results.columns = immune_props
     model_results = pd.DataFrame()
     for immune_prop in immune_props:
         parameters.update({"prop_recovered": immune_prop})
         model.run(parameters=parameters, solver="euler")
-        model_results[immune_prop] = model.get_derived_outputs_df()["incidence"]
+        model_results[str(immune_prop)] = model.get_derived_outputs_df()["incidence"]
 
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
@@ -465,12 +463,11 @@ def test_4_12():
 
     r0s = np.linspace(0.99, 15., 100)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_12_outputs.csv", index_col=0)["0"]
-    expected_results.index = r0s
-    model_results = pd.Series(index=r0s, dtype=float)
-    for r0 in r0s:
+    model_results = pd.Series(index=range(len(r0s)))
+    for i_r0, r0 in enumerate(r0s):
         parameters.update({"r0": r0})
         model.run(parameters=parameters, solver="euler")
-        model_results[r0] = 1. - model.get_outputs_df().loc[config["end_time"], "susceptible"]
+        model_results[i_r0] = 1. - model.get_outputs_df().loc[config["end_time"], "susceptible"]
 
     differences = model_results - expected_results
     assert max(differences.abs()) < TOLERANCE
@@ -728,12 +725,11 @@ def test_4_26():
 
     birth_rates = (0.015, 0.025, 0.04)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_26_outputs.csv", index_col=0)
-    expected_results.columns = birth_rates
     model_results = pd.DataFrame(columns=birth_rates)
     for rate in birth_rates:
         parameters.update({"crude_birth_rate": rate})
         model.run(parameters=parameters, solver="euler")
-        model_results[rate] = model.get_derived_outputs_df()["incidence_rate"]
+        model_results[str(rate)] = model.get_derived_outputs_df()["incidence_rate"]
 
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
@@ -850,13 +846,12 @@ def test_4_29():
 
     coverage_values = (0.5, 0.8, 0.9)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_29_outputs.csv", index_col=0)
-    expected_results.columns = coverage_values
 
     model_results = pd.DataFrame(columns=coverage_values)
     for coverage in coverage_values:
         parameters.update({"vacc_coverage": coverage})
         model.run(parameters=parameters, solver="euler")
-        model_results[coverage] = model.get_derived_outputs_df()["incidence_rate"]
+        model_results[str(coverage)] = model.get_derived_outputs_df()["incidence_rate"]
 
     differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
@@ -992,7 +987,6 @@ def test_4_31_sirs():
 
     wane_rates = (8, 10, 12)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_31_sirs_outputs.csv", index_col=0)
-    expected_results.columns = wane_rates
     model_results = pd.DataFrame(columns=wane_rates)
     for wane_rate in wane_rates:
         parameters.update(
@@ -1001,7 +995,7 @@ def test_4_31_sirs():
             }
         )
         model.run(parameters=parameters, solver="euler")
-        model_results[wane_rate] = model.get_derived_outputs_df()["incidence_rate"]
+        model_results[str(wane_rate)] = model.get_derived_outputs_df()["incidence_rate"]
     model_results.index = model_results.index / 365.
 
     differences = expected_results - model_results
@@ -1205,12 +1199,11 @@ def test_5_13():
 
     coverage_values = (0., 0.6, 0.75)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "5_13_outputs.csv", index_col=0)
-    expected_results.columns = coverage_values
     model_results = pd.DataFrame(columns=coverage_values)
     for coverage in coverage_values:
         vacc_model = build_demog_model(coverage)
         vacc_model.run(parameters=parameters, solver="euler")
-        model_results[coverage] = vacc_model.get_outputs_df()["Infectious"]
+        model_results[str(coverage)] = vacc_model.get_outputs_df()["Infectious"]
 
     differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
