@@ -119,12 +119,13 @@ def test_4_03():
         name="Rn", func=Parameter("r0") * DerivedOutput("suscept_prop")
     )
 
-    # Run for measles
+    # Measles
     parameters = {
         "r0": 13.0,
         "latent_period": 7.0,
         "infectious_period": 8.0,
     }
+
     model.run(parameters=parameters, solver="euler")
 
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_03_measles_outputs.csv", index_col=0)
@@ -136,6 +137,7 @@ def test_4_03():
         ),
         axis=1,
     )
+
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
 
@@ -145,6 +147,7 @@ def test_4_03():
         "infectious_period": 2.,
         "latent_period": 2.,
     }
+
     model.run(parameters=parameters, solver="euler")
 
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_03_flu_outputs.csv", index_col=0)
@@ -156,6 +159,7 @@ def test_4_03():
         ),
         axis=1,
     )
+
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
 
@@ -214,9 +218,8 @@ def test_4_04():
         flow_name="progression"
     )
 
-    model.run(parameters=parameters, solver="euler")
-
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_04_measles_outputs.csv", index_col=0)
+    model.run(parameters=parameters, solver="euler")
     model_results = pd.concat(
         (
             model.get_outputs_df()["Susceptible"] / config["total_population"], 
@@ -225,6 +228,7 @@ def test_4_04():
         ), 
         axis=1,
     )
+
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
 
@@ -245,8 +249,10 @@ def test_4_04():
         ), 
         axis=1,
     )
+
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
+
 
 def test_4_05():
 
@@ -321,8 +327,8 @@ def test_4_05():
             "infectious_period": 2.,
         }
     )
-
     immune_props = (0., 0.45, 0.49, 0.5, 0.51, 0.55)
+
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_05_flu_outputs.csv", index_col=0)
     model_results = pd.DataFrame()
     for immune_prop in immune_props:
@@ -332,6 +338,7 @@ def test_4_05():
 
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
+
 
 def test_4_06():
 
@@ -383,7 +390,7 @@ def test_4_06():
         raw_results=True,
     )
 
-    # Run for measles
+    # Measles
     parameters = {
         "r0": 13.,
         "latent_period": 8.,
@@ -400,7 +407,7 @@ def test_4_06():
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
 
-    # Run for flu
+    # Flu
     parameters = {
         "r0": 2.,
         "latent_period": 2.,
@@ -416,6 +423,7 @@ def test_4_06():
 
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
+
 
 def test_4_12():
 
@@ -461,8 +469,8 @@ def test_4_12():
         dest="recovered",
     )
 
-    r0s = np.linspace(0.99, 15., 100)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_12_outputs.csv", index_col=0)["0"]
+    r0s = np.linspace(0.99, 15., 100)
     model_results = pd.Series(index=range(len(r0s)))
     for i_r0, r0 in enumerate(r0s):
         parameters.update({"r0": r0})
@@ -471,6 +479,7 @@ def test_4_12():
 
     differences = model_results - expected_results
     assert max(differences.abs()) < TOLERANCE
+
 
 def test_4_17():
 
@@ -543,10 +552,10 @@ def test_4_17():
         func=DerivedOutput("incidence") / DerivedOutput("total_population") * 1e5,
     )
 
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_17_outputs.csv", index_col=0)["incidence"]
     model.run(parameters=parameters, solver="euler")
     model_results = model.get_derived_outputs_df()["incidence"]
 
-    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_17_outputs.csv", index_col=0)["incidence"]
     differences = model_results - expected_results
     assert max(differences.abs()) < TOLERANCE
 
@@ -643,9 +652,9 @@ def test_4_19():
         func=DerivedOutput("susceptible_prop") * Parameter("r0"),
     )
     
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_19_outputs.csv", index_col=0)
     model.run(parameters=parameters, solver="euler")
     model_results = model.get_derived_outputs_df()
-    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_19_outputs.csv", index_col=0)
 
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
@@ -723,8 +732,8 @@ def test_4_26():
         func=DerivedOutput("incidence") / DerivedOutput("total_population") * 1e5,
     )
 
-    birth_rates = (0.015, 0.025, 0.04)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_26_outputs.csv", index_col=0)
+    birth_rates = (0.015, 0.025, 0.04)
     model_results = pd.DataFrame(columns=birth_rates)
     for rate in birth_rates:
         parameters.update({"crude_birth_rate": rate})
@@ -733,6 +742,7 @@ def test_4_26():
 
     differences = model_results - expected_results
     assert differences.abs().max().max() < TOLERANCE
+
 
 def test_4_29():
 
@@ -844,9 +854,8 @@ def test_4_29():
     )
     model.stratify_with(vacc_strat)
 
-    coverage_values = (0.5, 0.8, 0.9)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_29_outputs.csv", index_col=0)
-
+    coverage_values = (0.5, 0.8, 0.9)
     model_results = pd.DataFrame(columns=coverage_values)
     for coverage in coverage_values:
         parameters.update({"vacc_coverage": coverage})
@@ -985,8 +994,8 @@ def test_4_31_sirs():
         func=DerivedOutput("incidence") * 1e5 * 30,
     )
 
-    wane_rates = (8, 10, 12)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_31_sirs_outputs.csv", index_col=0)
+    wane_rates = (8, 10, 12)
     model_results = pd.DataFrame(columns=wane_rates)
     for wane_rate in wane_rates:
         parameters.update(
@@ -1197,8 +1206,8 @@ def test_5_13():
         "life_expectancy": 70.,
     }
 
-    coverage_values = (0., 0.6, 0.75)
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "5_13_outputs.csv", index_col=0)
+    coverage_values = (0., 0.6, 0.75)
     model_results = pd.DataFrame(columns=coverage_values)
     for coverage in coverage_values:
         vacc_model = build_demog_model(coverage)
@@ -1642,6 +1651,7 @@ def test_8_14():
         DerivedOutput("total")
     )
 
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_14_outputs.csv", index_col=0)
     model_names = ("More with-unlike", "Proportionate", "More with-like")
     model_results = pd.DataFrame(columns=model_names)
     for i_model, name in enumerate(model_names):
@@ -1650,11 +1660,8 @@ def test_8_14():
         parameters["ghh"] = ghh
         model.run(parameters=parameters, solver="euler")
         model_results[str(name)] = model.get_derived_outputs_df()["Overall"]
-        
     model_results.index = model_results.index / 365.
     model_results *= 100.
-
-    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_14_outputs.csv", index_col=0)
 
     expected_results.index = [round(i, 5) for i in expected_results.index]
     model_results.index = [round(i, 5) for i in model_results.index]
@@ -1821,7 +1828,6 @@ def test_8_20():
     )
 
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_20_outputs.csv", index_col=0)
-
     model.run(parameters=parameters, solver="euler")
     model_results = model.get_derived_outputs_df()
 
