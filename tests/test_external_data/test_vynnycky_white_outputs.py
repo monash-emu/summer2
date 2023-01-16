@@ -1565,8 +1565,8 @@ def test_8_14():
         "high_prop": 0.02,
     }
     updates = {
-        "recovery": [0.34, 0.167, 0.097],  # Taken from textbook estimates
-        "ghh": [0.0396, 0.314, 0.5884],  # Manually calibrated to Q values
+        "recovery": [0.34, 0.167, 0.097],
+        "ghh": [0.0396, 0.314, 0.5884],
     }
 
     compartments = (
@@ -1661,3 +1661,170 @@ def test_8_14():
 
     differences = expected_results - outputs
     assert differences.abs().max().max() < TOLERANCE
+
+
+def test_8_20():
+
+    config = {
+        "total_population": 1e4,
+        "infectious_seed": 10.,
+        "end_time": 100.,
+    }
+    parameters = {
+        "high_prop": 0.15,
+        "high_partner_change_rate": 8.,
+        "low_partner_change_rate": 0.2,
+        "infectious_period": 9.,
+        "expectancy_at_debut": 35.,
+        "aids_period": 1.,
+        "contact_rate": 0.05,
+    }
+
+    compartments = (
+        "Susceptible", 
+        "Infectious", 
+        "AIDS"
+    )
+    model = CompartmentalModel(
+        times=(0., config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=("Infectious",),
+    )
+    model.set_initial_population(
+        distribution={
+            "Susceptible": config["total_population"] - config["infectious_seed"],
+            "Infectious": config["infectious_seed"],
+        }
+    )
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("contact_rate"),
+        source="Susceptible",
+        dest="Infectious"
+    )
+    model.add_transition_flow(
+        name="progression", 
+        fractional_rate=1. / Parameter("infectious_period"),
+        source="Infectious", 
+        dest="AIDS"
+    )
+    model.add_universal_death_flows(
+        "non_aids_mortality",
+        1. / Parameter("expectancy_at_debut"),
+    )
+    model.add_replacement_birth_flow(
+        "recruitment",
+        "Susceptible",
+    )
+    model.add_death_flow(
+        "aids_mortality",
+        1. / Parameter("aids_period"),
+        "AIDS",
+    )
+    activity_strata = ("High", "Low")
+    activity_strat = Stratification(
+        "activity",
+        activity_strata,
+        compartments,
+    )
+    high_prop = Parameter("high_prop")
+    low_prop = 1. - high_prop
+    activity_strat.set_population_split(
+        {
+            "High": high_prop,
+            "Low": low_prop,
+        }
+    )
+    activity_strat.set_flow_adjustments(
+        "recruitment",
+        adjustments={
+            "High": high_prop,
+            "Low": low_prop,
+        },
+    )
+    high_prop = Parameter("high_prop")
+    high_rate = Parameter("high_partner_change_rate")
+    low_rate = Parameter("low_partner_change_rate")
+    high_partner_change_prop = high_rate * high_prop / (high_rate * high_prop + low_rate * (1. - high_prop))
+    low_partner_change_prop = 1. - high_partner_change_prop
+    
+    def build_matrix(high_change_prop, low_change_prop):
+        mixing_matrix = jnp.array([[high_change_prop, low_change_prop]])  # The "g" values
+        mixing_matrix = jnp.repeat(mixing_matrix, 2, axis=0)  # Double up to a square array
+        return mixing_matrix
+    
+    activity_strat.set_flow_adjustments(
+        "infection",
+        {
+            "High": Multiply(Parameter("high_partner_change_rate")),  # Or multiply top row of matrix by this
+            "Low": Multiply(Parameter("low_partner_change_rate")),  # Or multiply bottom row of matrix by this
+        },
+    )
+    mixing_matrix = Function(build_matrix, (high_partner_change_prop, low_partner_change_prop))
+    activity_strat.set_mixing_matrix(mixing_matrix)
+    model.stratify_with(activity_strat)
+    model.request_output_for_compartments(
+        "infectious",
+        ["Infectious"],
+        save_results=False,
+    )
+    model.request_output_for_compartments(
+        "total",
+        compartments,
+        save_results=False,
+    )
+    model.request_function_output(
+        "Prevalence",
+        DerivedOutput("infectious") / DerivedOutput("total") * 100.,
+    )
+    model.request_output_for_flow(
+        "HIV infections",
+        "infection",
+    )
+    model.request_function_output(
+        "Incidence",
+        DerivedOutput("HIV infections") / DerivedOutput("total") * 100.,
+    )
+    model.request_output_for_flow(
+        "mortality",
+        "aids_mortality",
+    )
+    model.request_cumulative_output(
+        "Cumulative mortality",
+        "mortality",
+    )
+    model.request_output_for_flow(
+        "non_aids_mortality",
+        "non_aids_mortality",
+    )
+    model.request_output_for_compartments(
+        "hiv_number",
+        ("Infectious", "AIDS",),
+    )
+    model.request_function_output(
+        "Deaths",
+        func=DerivedOutput("mortality") + (1. / Parameter("expectancy_at_debut")) * DerivedOutput("hiv_number"),
+    )
+    for stratum in activity_strata:
+        model.request_output_for_compartments(
+            f"{stratum}_number",
+            compartments,
+            strata={"activity": stratum},
+        )
+        model.request_function_output(
+            f"{stratum}_prev",
+            func=DerivedOutput(f"{stratum}_number") / DerivedOutput("total"),
+        )
+    model.request_function_output(
+        "mean_partner_change",
+        func=DerivedOutput("High_prev") * Parameter("high_partner_change_rate") + DerivedOutput("Low_prev") * Parameter("low_partner_change_rate"),
+    )
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_20_outputs.csv", index_col=0)
+
+    model.run(parameters=parameters, solver="euler")
+    outputs = model.get_derived_outputs_df()
+
+    differences = expected_results - outputs
+    assert differences.abs().max().max() < TOLERANCE
+    
