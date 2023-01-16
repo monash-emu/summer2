@@ -1401,3 +1401,138 @@ def test_8_08():
 
     differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
+
+
+def test_8_09():
+
+    config = {
+        "end_time": 1000.,
+        "population": 1.,
+        "seed": 1e-6,
+    }
+    parameters = {
+        "recovery": 6.,
+        "contact_rate": 0.75,
+        "high_prop": 0.02,
+        "average_partner_change": 2.,
+    }
+
+    compartments = (
+        "susceptible",
+        "infectious",
+    )
+    model = CompartmentalModel(
+        times=(0., config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=["infectious"],
+        timestep=0.01,
+    )
+    model.set_initial_population(
+        distribution=
+        {
+            "susceptible": config["population"] - config["seed"], 
+            "infectious": config["seed"],
+        }
+    )
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("contact_rate"),
+        source="susceptible", 
+        dest="infectious",
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=Parameter("recovery"),
+        source="infectious", 
+        dest="susceptible",
+    )
+    activity_strat = Stratification(
+        "activity",
+        ["High", "Low"],
+        compartments,
+    )
+
+    high_prop = Parameter("high_prop")
+    low_prop = 1. - high_prop
+    activity_strat.set_population_split(
+        {
+            "High": high_prop,
+            "Low": low_prop,
+        }
+    )
+    low_partner_change = Parameter("low_partner_change")
+    high_partner_change = (Parameter("average_partner_change") - low_partner_change * low_prop) / high_prop
+    high_change_rate_abs = high_partner_change * high_prop
+    low_change_rate_abs = low_partner_change * low_prop
+    total_change_rate = high_change_rate_abs + low_change_rate_abs
+    high_change_prop = high_change_rate_abs / total_change_rate
+    low_change_prop = low_change_rate_abs / total_change_rate
+    
+    def build_matrix(high_change_prop, low_change_prop):
+        mixing_matrix = jnp.array([[high_change_prop, low_change_prop]])
+        mixing_matrix = jnp.repeat(mixing_matrix, 2, axis=0)
+        return mixing_matrix
+    
+    mixing_matrix = Function(build_matrix, (high_change_prop, low_change_prop))
+    activity_strat.set_flow_adjustments(
+        "infection",
+        {
+            "High": Multiply(high_partner_change),
+            "Low": Multiply(low_partner_change),
+        },
+    )
+    activity_strat.set_mixing_matrix(mixing_matrix)
+    model.stratify_with(activity_strat)
+    model.request_output_for_compartments(
+        "infectious",
+        ["infectious"],
+        save_results=False,
+    )
+    model.request_output_for_compartments(
+        "total",
+        compartments,
+        save_results=False,
+    )
+    model.request_function_output(
+        "Overall",
+        DerivedOutput("infectious") / 
+        DerivedOutput("total")
+    )
+    for stratum in ["High", "Low"]:
+        model.request_output_for_compartments(
+            f"infectiousX{stratum}",
+            ["infectious"],
+            strata={"activity": stratum},
+            save_results=False,
+        )
+        model.request_output_for_compartments(
+            f"totalX{stratum}",
+            compartments,
+            strata={"activity": stratum},
+            save_results=False,
+        )
+        model.request_function_output(
+            stratum,
+            DerivedOutput(f"infectiousX{stratum}") / 
+            DerivedOutput(f"totalX{stratum}")
+        )
+    model.request_output_for_flow(
+        "incidence",
+        "infection",
+    )
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_09_outputs.csv", index_col=0)
+    low_change_rates = np.concatenate((np.linspace(2., 1., 21), np.linspace(0.9, 0., 6)))
+    output_groups = ["Overall", "Low", "High"]
+    model_outputs = pd.DataFrame(index=low_change_rates, columns=output_groups)
+    for low_change in low_change_rates:
+        parameters.update({"low_partner_change": low_change})
+        model.run(parameters=parameters, solver="euler")
+        model_outputs.loc[low_change] = model.get_derived_outputs_df().loc[config["end_time"], :] * 100.
+
+    expected_results.index = [round(i, 5) for i in expected_results.index]
+    model_outputs.index = [round(i, 5) for i in model_outputs.index]
+
+    differences = expected_results - model_outputs
+    assert differences.abs().max().max() < TOLERANCE
+    
