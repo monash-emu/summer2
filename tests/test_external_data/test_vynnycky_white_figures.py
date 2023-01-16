@@ -6,7 +6,7 @@ import numpy as np
 from summer2 import CompartmentalModel, Stratification, Multiply
 from summer2.parameters import Parameter, DerivedOutput, Time, Function
 
-TEST_OUTPUTS_PATH = Path(__file__).with_name("vynnycky_white_outputs")
+TEST_OUTPUTS_PATH = Path(__file__).with_name("vynnycky_white_figures")
 TOLERANCE = 1e-9
 
 
