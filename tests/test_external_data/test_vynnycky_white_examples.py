@@ -5,6 +5,14 @@ import pandas as pd
 from summer2.model import CompartmentalModel
 from summer2.parameters import Parameter
 
+"""
+This set of tests compares the current behaviour of summer2
+against the spreadsheets from the textbook
+"An Introduction to Infectious Diseases Modelling"
+by Vynnycky and White.
+"""
+
+
 TEST_DATA_PATH = Path(__file__).with_name("vynnycky_white_examples")
 TOLERANCE = 1e-5
 

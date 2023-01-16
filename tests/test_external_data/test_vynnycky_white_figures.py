@@ -6,6 +6,14 @@ import numpy as np
 from summer2 import CompartmentalModel, Stratification, Multiply
 from summer2.parameters import Parameter, DerivedOutput, Time, Function
 
+
+"""
+This set of tests compares the outputs generated from the repository
+https://github.com/monash-emu/summer-vynnycky-white-validation
+against the current behaviour of summer2, using equivalent code.
+"""
+
+
 TEST_OUTPUTS_PATH = Path(__file__).with_name("vynnycky_white_figures")
 TOLERANCE = 1e-9
 
