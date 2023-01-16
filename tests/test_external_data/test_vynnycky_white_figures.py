@@ -1644,7 +1644,7 @@ def test_8_14():
         DerivedOutput("total")
     )
 
-    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_14_outputs.csv", index_col=0)
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_14_outputs.csv")
     model_names = ("More with-unlike", "Proportionate", "More with-like")
     model_results = pd.DataFrame(columns=model_names)
     for i_model, name in enumerate(model_names):
@@ -1654,6 +1654,7 @@ def test_8_14():
         model.run(parameters=parameters, solver="euler")
         model_results[name] = model.get_derived_outputs_df()["Overall"]
     model_results *= 100.0
+    model_results.reset_index(drop=True, inplace=True)
 
     differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
