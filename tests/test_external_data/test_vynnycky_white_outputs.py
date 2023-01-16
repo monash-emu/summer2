@@ -1535,4 +1535,129 @@ def test_8_09():
 
     differences = expected_results - model_outputs
     assert differences.abs().max().max() < TOLERANCE
-    
+
+
+def build_matrix(high_prop, high_partner_change, low_partner_change, ghh):
+    low_prop = 1. - high_prop
+    glh = 1. - ghh
+    ghl = (1. - ghh) * high_partner_change * high_prop / (low_partner_change * low_prop)
+    gll = 1. - ghl
+    matrix = jnp.array(
+        [
+            [ghh, ghl],
+            [glh, gll],
+        ]
+    )
+    return matrix.T
+
+
+def test_8_14():
+
+    config = {
+        "end_time": 20. * 365.,
+        "population": 1.,
+        "seed": 1e-6,
+    }
+    parameters = {
+        "contact_rate": 0.75 / 365.,
+        "high_partner_change": 31.4,
+        "low_partner_change": 1.4,
+        "high_prop": 0.02,
+    }
+    updates = {
+        "recovery": [0.34, 0.167, 0.097],  # Taken from textbook estimates
+        "ghh": [0.0396, 0.314, 0.5884],  # Manually calibrated to Q values
+    }
+
+    compartments = (
+        "susceptible",
+        "infectious",
+    )
+    model = CompartmentalModel(
+        times=(0., config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=["infectious"],
+    )
+    model.set_initial_population(
+        distribution=
+        {
+            "susceptible": config["population"] - config["seed"], 
+            "infectious": config["seed"],
+        }
+    )
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("contact_rate"),
+        source="susceptible", 
+        dest="infectious",
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=1. / Parameter("recovery") / 365.,
+        source="infectious", 
+        dest="susceptible",
+    )
+    activity_strat = Stratification(
+        "activity",
+        ["High", "Low"],
+        compartments,
+    )
+    high_prop = Parameter("high_prop")
+    low_prop = 1. - high_prop
+    high_partner_change = Parameter("high_partner_change")
+    low_partner_change = Parameter("low_partner_change")
+    activity_strat.set_population_split(
+        {
+            "High": high_prop,
+            "Low": low_prop,
+        }
+    )
+    mixing_matrix = Function(
+        build_matrix, 
+        (high_prop, high_partner_change, low_partner_change, Parameter("ghh"))
+    )
+    activity_strat.set_mixing_matrix(mixing_matrix)
+    activity_strat.set_flow_adjustments(
+        "infection",
+        {
+            "High": Multiply(high_partner_change),
+            "Low": Multiply(low_partner_change),
+        },
+    )
+
+    model.stratify_with(activity_strat)
+    model.request_output_for_compartments(
+        "infectious",
+        ["infectious"],
+        save_results=False,
+    )
+    model.request_output_for_compartments(
+        "total",
+        compartments,
+        save_results=False,
+    )
+    model.request_function_output(
+        "Overall",
+        DerivedOutput("infectious") / 
+        DerivedOutput("total")
+    )
+
+    model_names = ("More with-unlike", "Proportionate", "More with-like")
+    outputs = pd.DataFrame(columns=model_names)
+    for i_model, name in enumerate(model_names):
+        parameters["recovery"] = updates["recovery"][i_model]
+        ghh = updates["ghh"][i_model]
+        parameters["ghh"] = ghh
+        model.run(parameters=parameters, solver="euler")
+        outputs[str(name)] = model.get_derived_outputs_df()["Overall"]
+        
+    outputs.index = outputs.index / 365.
+    outputs *= 100.
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_14_outputs.csv", index_col=0)
+
+    expected_results.index = [round(i, 5) for i in expected_results.index]
+    outputs.index = [round(i, 5) for i in outputs.index]
+
+    differences = expected_results - outputs
+    assert differences.abs().max().max() < TOLERANCE
