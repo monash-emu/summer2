@@ -923,9 +923,6 @@ def test_4_31_sis():
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "4_31_sis_outputs.csv", index_col=0)
     model.run(parameters=parameters, solver="euler")
     model_results = model.get_derived_outputs_df()
-    model_results.index = model_results.index / 365.
-    expected_results.index = [round(i, 5) for i in expected_results.index]
-    model_results.index = [round(i, 5) for i in model_results.index]
 
     differences = expected_results - model_results
     assert differences["incidence_rate"].abs().max() < TOLERANCE
