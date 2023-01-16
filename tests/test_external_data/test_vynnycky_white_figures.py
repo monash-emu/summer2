@@ -1652,12 +1652,8 @@ def test_8_14():
         ghh = updates["ghh"][i_model]
         parameters["ghh"] = ghh
         model.run(parameters=parameters, solver="euler")
-        model_results[str(name)] = model.get_derived_outputs_df()["Overall"]
-    model_results.index = model_results.index / 365.
-    model_results *= 100.
-
-    expected_results.index = [round(i, 5) for i in expected_results.index]
-    model_results.index = [round(i, 5) for i in model_results.index]
+        model_results[name] = model.get_derived_outputs_df()["Overall"]
+    model_results *= 100.0
 
     differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
