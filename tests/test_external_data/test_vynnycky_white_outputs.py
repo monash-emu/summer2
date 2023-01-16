@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 import numpy as np
 
-from summer2 import CompartmentalModel, Stratification
+from summer2 import CompartmentalModel, Stratification, Multiply
 from summer2.parameters import Parameter, DerivedOutput, Time, Function
 
 
@@ -1275,3 +1275,129 @@ def test_8_05():
 
     differences = expected_outputs - model_outputs
     assert max(differences.abs()) < TOLERANCE
+
+
+def test_8_08():
+
+    config = {
+        "end_time": 10. * 365.,
+        "population": 1.,
+        "seed": 1e-6,
+    }
+    parameters = {
+        "recovery": 6. / 365.,
+        "contact_rate": 0.75 / 365.,
+        "high_prop": 0.02,
+        "average_partner_change": 2.,
+        "low_partner_change": 1.4,
+    }
+
+    compartments = (
+        "susceptible",
+        "infectious",
+    )
+    model = CompartmentalModel(
+        times=(0., config["end_time"]),
+        compartments=compartments,
+        infectious_compartments=["infectious"],
+    )
+    model.set_initial_population(
+        distribution=
+        {
+            "susceptible": config["population"] - config["seed"], 
+            "infectious": config["seed"],
+        }
+    )
+    model.add_infection_frequency_flow(
+        name="infection", 
+        contact_rate=Parameter("contact_rate"),
+        source="susceptible", 
+        dest="infectious",
+    )
+    model.add_transition_flow(
+        name="recovery", 
+        fractional_rate=Parameter("recovery"),
+        source="infectious", 
+        dest="susceptible",
+    )
+    activity_strat = Stratification(
+        "activity",
+        ["High", "Low"],
+        compartments,
+    )
+    high_prop = Parameter("high_prop")
+    low_prop = 1. - high_prop
+    activity_strat.set_population_split(
+        {
+            "High": high_prop,
+            "Low": low_prop,
+        }
+    )
+    low_partner_change = Parameter("low_partner_change")
+    high_partner_change = (Parameter("average_partner_change") - low_partner_change * low_prop) / high_prop  # Equation 8.15
+    high_change_rate_abs = high_partner_change * high_prop  # Absolute partner change rate, high stratum
+    low_change_rate_abs = low_partner_change * low_prop  # Absolute partner change rate, low stratum
+    total_change_rate = high_change_rate_abs + low_change_rate_abs  # Total rate of partner changes across the population
+    high_change_prop = high_change_rate_abs / total_change_rate  # Equation 8.20
+    low_change_prop = low_change_rate_abs / total_change_rate
+    
+    def build_matrix(high_change_prop, low_change_prop):
+        mixing_matrix = jnp.array([[high_change_prop, low_change_prop]])  # The "g" values
+        mixing_matrix = jnp.repeat(mixing_matrix, 2, axis=0)  # Double up to a square array
+        return mixing_matrix
+    
+    mixing_matrix = Function(build_matrix, (high_change_prop, low_change_prop))
+    activity_strat.set_mixing_matrix(mixing_matrix)
+    activity_strat.set_flow_adjustments(
+        "infection",
+        {
+            "High": Multiply(high_partner_change),  # Or multiply top row of matrix by this
+            "Low": Multiply(low_partner_change),  # Or multiply bottom row of matrix by this
+        },
+    )
+    model.stratify_with(activity_strat)
+    model.request_output_for_compartments(
+        "infectious",
+        ["infectious"],
+        save_results=False,
+    )
+    model.request_output_for_compartments(
+        "total",
+        compartments,
+        save_results=False,
+    )
+    model.request_function_output(
+        "Overall",
+        DerivedOutput("infectious") / DerivedOutput("total"), 
+    )
+    for stratum in ["High", "Low"]:
+        model.request_output_for_compartments(
+            f"infectiousX{stratum}",
+            ["infectious"],
+            strata={"activity": stratum},
+            save_results=False,
+        )
+        model.request_output_for_compartments(
+            f"totalX{stratum}",
+            compartments,
+            strata={"activity": stratum},
+            save_results=False,
+        )
+        model.request_function_output(
+            stratum,
+            DerivedOutput(f"infectiousX{stratum}") / 
+            DerivedOutput(f"totalX{stratum}")
+        )
+    model.request_output_for_flow(
+        "incidence",
+        "infection",
+    )
+
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_08_outputs.csv", index_col=0)
+    model.run(parameters=parameters, solver="euler")
+    model_results = model.get_derived_outputs_df()
+    model_results.index = model_results.index / 365.
+    model_results = model_results * 100.
+
+    differences = expected_results - model_results
+    assert differences.abs().max().max() < TOLERANCE
