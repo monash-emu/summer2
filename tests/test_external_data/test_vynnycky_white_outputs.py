@@ -1269,11 +1269,11 @@ def test_8_05():
         DerivedOutput("infectious") / DerivedOutput("total")
     )
 
-    expected_outputs = pd.read_csv(TEST_OUTPUTS_PATH / "8_05_outputs.csv", index_col=0)["prevalence"]
+    expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_05_outputs.csv", index_col=0)["prevalence"]
     model.run(parameters=parameters, solver="euler")
-    model_outputs = model.get_derived_outputs_df()["prevalence"]
+    model_results = model.get_derived_outputs_df()["prevalence"]
 
-    differences = expected_outputs - model_outputs
+    differences = expected_results - model_results
     assert max(differences.abs()) < TOLERANCE
 
 
@@ -1524,16 +1524,16 @@ def test_8_09():
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_09_outputs.csv", index_col=0)
     low_change_rates = np.concatenate((np.linspace(2., 1., 21), np.linspace(0.9, 0., 6)))
     output_groups = ["Overall", "Low", "High"]
-    model_outputs = pd.DataFrame(index=low_change_rates, columns=output_groups)
+    model_results = pd.DataFrame(index=low_change_rates, columns=output_groups)
     for low_change in low_change_rates:
         parameters.update({"low_partner_change": low_change})
         model.run(parameters=parameters, solver="euler")
-        model_outputs.loc[low_change] = model.get_derived_outputs_df().loc[config["end_time"], :] * 100.
+        model_results.loc[low_change] = model.get_derived_outputs_df().loc[config["end_time"], :] * 100.
 
     expected_results.index = [round(i, 5) for i in expected_results.index]
-    model_outputs.index = [round(i, 5) for i in model_outputs.index]
+    model_results.index = [round(i, 5) for i in model_results.index]
 
-    differences = expected_results - model_outputs
+    differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
 
 
@@ -1643,23 +1643,23 @@ def test_8_14():
     )
 
     model_names = ("More with-unlike", "Proportionate", "More with-like")
-    outputs = pd.DataFrame(columns=model_names)
+    model_results = pd.DataFrame(columns=model_names)
     for i_model, name in enumerate(model_names):
         parameters["recovery"] = updates["recovery"][i_model]
         ghh = updates["ghh"][i_model]
         parameters["ghh"] = ghh
         model.run(parameters=parameters, solver="euler")
-        outputs[str(name)] = model.get_derived_outputs_df()["Overall"]
+        model_results[str(name)] = model.get_derived_outputs_df()["Overall"]
         
-    outputs.index = outputs.index / 365.
-    outputs *= 100.
+    model_results.index = model_results.index / 365.
+    model_results *= 100.
 
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_14_outputs.csv", index_col=0)
 
     expected_results.index = [round(i, 5) for i in expected_results.index]
-    outputs.index = [round(i, 5) for i in outputs.index]
+    model_results.index = [round(i, 5) for i in model_results.index]
 
-    differences = expected_results - outputs
+    differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
 
 
@@ -1823,8 +1823,7 @@ def test_8_20():
     expected_results = pd.read_csv(TEST_OUTPUTS_PATH / "8_20_outputs.csv", index_col=0)
 
     model.run(parameters=parameters, solver="euler")
-    outputs = model.get_derived_outputs_df()
+    model_results = model.get_derived_outputs_df()
 
-    differences = expected_results - outputs
+    differences = expected_results - model_results
     assert differences.abs().max().max() < TOLERANCE
-    
