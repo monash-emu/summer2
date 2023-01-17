@@ -17,26 +17,6 @@ def _as_graphobj(x) -> GraphObject:
         return Data(jnp_arr)
 
 
-def get_piecewise_scalar_function(breakpoints, values, x=Time) -> Function:
-    """Create a Function object to be evaluated in the {x} domain, returning
-    a value selected from {values}, the index of which is the x-bounds
-    described by {breakpoints}.
-
-    By default x is summer2 Time (time-varying function)
-
-    Args:
-        breakpoints: Breakpoints to which x is compared
-        values: Array-like of length len(breakpoints) + 1
-        x: GraphObject supplying the x value.  Defaults to Time.
-
-    Returns:
-        The resulting wrapped Function object
-    """
-    breakpoints = _as_graphobj(breakpoints)
-    values = _as_graphobj(values)
-    return Function(piecewise_constant, (x, breakpoints, values))
-
-
 def piecewise_function(x, breakpoints, functions):
     index = sum(x >= breakpoints)
     return lax.switch(index, functions, x)
