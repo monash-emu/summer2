@@ -418,7 +418,7 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
 
     dyn_params = set(dyn_params).union(set(ts_vars))
 
-    param_frozen_cg = runner.model.graph.freeze(dyn_params, source_inputs)
+    param_frozen_cg, _ = runner.model.graph.freeze(dyn_params, source_inputs)
 
     # static_cg = param_frozen_cg.filter(exclude=ts_vars)
     # static_graph_func = static_cg.get_callable()(parameters=base_params)
