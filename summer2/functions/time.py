@@ -54,7 +54,7 @@ def get_sigmoidal_interpolation_function(
 
 
 def get_piecewise_scalar_function(
-    breakpoints: jax.Array, y_pts: Union[jax.Array, GraphObject], x_axis=Time
+    breakpoints: jax.Array, values: Union[jax.Array, GraphObject], x_axis=Time
 ) -> Function:
     """Create a Function object to be evaluated in the {x} domain, returning
     a value selected from {values}, the index of which is the x-bounds
