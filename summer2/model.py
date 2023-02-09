@@ -8,12 +8,14 @@ from collections import OrderedDict
 from typing import Callable, Dict, List, Optional, Tuple
 from warnings import warn
 import itertools
+from numbers import Real
 
 import networkx
 import numpy as np
 import pandas as pd
 
 from computegraph import ComputeGraph
+from computegraph.types import GraphObject
 from computegraph.utils import expand_nested_dict
 
 import summer2.flows as flows
@@ -261,6 +263,9 @@ class CompartmentalModel:
                                             are created.
 
         """
+
+        _validate_flowparam(birth_rate)
+
         is_already_birth_flow = any(
             [
                 type(f) is flows.CrudeBirthFlow or type(f) is flows.ReplacementBirthFlow
@@ -345,6 +350,8 @@ class CompartmentalModel:
 
         """
 
+        _validate_flowparam(num_imported)
+
         dest_strata = dest_strata or {}
         dest_comps = [c for c in self.compartments if c.is_match(dest, dest_strata)]
 
@@ -406,6 +413,9 @@ class CompartmentalModel:
                                             created.
 
         """
+
+        _validate_flowparam(death_rate)
+
         self._add_exit_flow(
             flows.DeathFlow,
             name,
@@ -426,6 +436,8 @@ class CompartmentalModel:
             death_rate: The fractional death rate per timestep.
 
         """
+
+        _validate_flowparam(death_rate)
 
         # Only allow a single universal death flow with a given name to be added to the model.
         is_already_used = any([f.name == name for f in self.flows])
@@ -490,6 +502,9 @@ class CompartmentalModel:
                                             created.
 
         """
+
+        _validate_flowparam(contact_rate)
+
         self._add_transition_flow(
             flows.InfectionFrequencyFlow,
             name,
@@ -527,6 +542,9 @@ class CompartmentalModel:
                                             created.
 
         """
+
+        _validate_flowparam(contact_rate)
+
         self._add_transition_flow(
             flows.InfectionDensityFlow,
             name,
@@ -565,6 +583,9 @@ class CompartmentalModel:
                                             created.
 
         """
+
+        _validate_flowparam(fractional_rate)
+
         if absolute:
             self._add_transition_flow(
                 flows.AbsoluteFlow,
@@ -1280,3 +1301,8 @@ class ModelResults:
         self.model.outputs = self.outputs
         self.model.derived_outputs = self.derived_outputs
         return results
+
+
+def _validate_flowparam(param):
+    if not (isinstance(param, GraphObject) or isinstance(param, Real)):
+        raise TypeError(f"Flow parameter must be GraphObject or float, not {type(param)}")
