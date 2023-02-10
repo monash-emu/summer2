@@ -69,12 +69,12 @@ def build_model_params_func(**kwargs):
 def build_model_static_func(params, **kwargs):
     """Static equivalent to build_model_params_func"""
 
-    def custom_rate(time, cv):
+    def custom_rate(time):
         return (time * 0.1) * params["contact_scale"]
 
     m = CompartmentalModel([0, 100], ["S", "I", "R"], ["I"])
     m.set_initial_population(dict(S=90, I=10, R=0))
-    m.add_infection_frequency_flow("infection", custom_rate, "S", "I")
+    m.add_infection_frequency_flow("infection", func(custom_rate, args=[Time]), "S", "I")
     m.add_transition_flow("recovery", params["recovery_rate"], "I", "R")
     return m
 

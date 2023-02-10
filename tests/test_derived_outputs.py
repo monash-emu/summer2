@@ -3,7 +3,8 @@ import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 
 from summer2.model import CompartmentalModel
-from summer2.parameters import Function, DerivedOutput
+from summer2.parameters import Function, DerivedOutput, Time
+
 
 def test_no_derived_outputs(backend):
     model = CompartmentalModel(
@@ -74,13 +75,19 @@ def test_flow_derived_outputs(backend):
 
     # Linear entry.
     model.add_importation_flow(
-        "imports_land", num_imported=lambda t, cv: 3 * t, dest="S", split_imports=False
+        "imports_land",
+        num_imported=Function(lambda t: 3 * t, [Time]),
+        dest="S",
+        split_imports=False,
     )
     model.request_output_for_flow(name="importation_land", flow_name="imports_land")
 
     # Quadratic entry.
     model.add_importation_flow(
-        "imports_air", num_imported=lambda t, cv: t**2, dest="S", split_imports=False
+        "imports_air",
+        num_imported=Function(lambda t: t**2, [Time]),
+        dest="S",
+        split_imports=False,
     )
     model.request_output_for_flow(name="importation_air", flow_name="imports_air")
 
