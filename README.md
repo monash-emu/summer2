@@ -1,8 +1,8 @@
-# Summer: compartmental disease modelling in Python
+# summer2: compartmental disease modelling in Python
 
 [![Automated Tests](https://github.com/monash-emu/summer2/actions/workflows/tests.yml/badge.svg)](https://github.com/monash-emu/summer2/actions/workflows/tests.yml)
 
-Summer is a Python-based framework for the creation and execution of [compartmental](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology) (or "state-based") epidemiological models of infectious disease transmission.
+summer2 is a Python-based framework for the creation and execution of [compartmental](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology) (or "state-based") epidemiological models of infectious disease transmission.
 
 It provides a range of structures for easily implementing compartmental models, including structure for some of the most common features added to basic compartmental frameworks, including:
 
@@ -17,8 +17,7 @@ It provides a range of structures for easily implementing compartmental models, 
 
 Some helpful links to learn more:
 
-- [Rationale](http://summerepi.com/rationale.html) for why we are building Summer
-- **[Documentation](http://summerepi.com/)** with [code examples](http://summerepi.com/examples)
+- **[Documentation](https://summer2.readthedocs.io/)** with [code examples](https://summer2.readthedocs.io/en/latest/examples/index.html)
 - [Available on PyPi](https://pypi.org/project/summerepi2/) as `summerepi2`.
 
 ## Installation and Quickstart
@@ -40,7 +39,7 @@ via WSL, or run the following command after installing
 pip install jax[cpu]==0.3.24 -f https://whls.blob.core.windows.net/unstable/index.html
 ```
 
-Then you can now use the library to build and run models. See [here](http://summerepi.com/examples) for some code examples.
+Then you can now use the library to build and run models. See [here](https://summer2.readthedocs.io/en/latest/examples/index.html) for some code examples.
 
 ## Optional (recommended) extras
 

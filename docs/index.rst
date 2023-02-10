@@ -9,8 +9,7 @@ It provides a range of structures for easily implementing compartmental models, 
 - Post-processing of compartment sizes into derived outputs
 - Stratification of compartments
 
-You can read more about the rationale behind Summer `here <http://summerepi.com/rationale.html>`_.
-The source code for this library is available `on GitHub <https://github.com/monash-emu/summer>`_.
+The source code for this library is available `on GitHub <https://github.com/monash-emu/summer2>`_.
 
 
 Contents
