@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath("../summer2"))
 
 # -- Project information -----------------------------------------------------
 
-project = "Summer"
+project = "Summer2"
 copyright = "2020, James Trauer"
 author = "James Trauer, David Shipman, Matthew Segal"
 
@@ -49,7 +49,7 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "old_docs", "README.md", "dev-setup.md"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "README.md", "dev-setup.md"]
 
 
 # -- Options for HTML output -------------------------------------------------

@@ -10,7 +10,6 @@ See below for some examples on how to use Summer:
    01-basic-model
    03-derived-outputs
    04-flow-types
-   05-ode-solvers
    06-stratification-introduction
    07-age-stratification
    08-strain-stratification
