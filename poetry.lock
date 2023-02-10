@@ -219,7 +219,7 @@ test = ["flake8 (==3.7.8)", "hypothesis (==3.55.3)"]
 
 [[package]]
 name = "computegraph"
-version = "0.3.6"
+version = "0.4.0"
 description = "computegraph is a tool for managing computational graphs using networkx"
 category = "main"
 optional = false
@@ -1775,7 +1775,7 @@ docs = ["sphinxcontrib-napoleon", "recommonmark", "nbsphinx", "sphinx-rtd-theme"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7.1,<3.11"
-content-hash = "b8d3dd395d5f76c565a78eeb8901b3e82c221a45fbd7d9e79acf0f9b29c9d087"
+content-hash = "c9e79a616e7a3252aa041067be0ee01e8393a8cf2dd402c3bbd45d1bf627ff15"
 
 [metadata.files]
 alabaster = [
@@ -1934,8 +1934,8 @@ commonmark = [
     {file = "commonmark-0.9.1.tar.gz", hash = "sha256:452f9dc859be7f06631ddcb328b6919c67984aca654e5fefb3914d54691aed60"},
 ]
 computegraph = [
-    {file = "computegraph-0.3.6-py3-none-any.whl", hash = "sha256:7d3a9ddbc0f1b6bc6f4a4c0c07a74ba5a30e56a3558283fc02f8a45f214ad023"},
-    {file = "computegraph-0.3.6.tar.gz", hash = "sha256:5d901863774131477df05499cd6bbd168a8b921720c13423eba4adcc157f435e"},
+    {file = "computegraph-0.4.0-py3-none-any.whl", hash = "sha256:2bbdb5f4001bd5ba529d5f0069a4a44b38e6f776f5ffc102a67cb18f4e58c610"},
+    {file = "computegraph-0.4.0.tar.gz", hash = "sha256:9a23cf56700c6ced77f0d61a350226dd1b9d324854bb61821debbaf72adc0820"},
 ]
 cycler = [
     {file = "cycler-0.11.0-py3-none-any.whl", hash = "sha256:3a27e95f763a428a739d2add979fa7494c912a32c17c4c38c4d5f082cad165a3"},
