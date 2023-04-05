@@ -16,7 +16,7 @@ class Parameter(Variable):
 
 
 class DerivedOutput(Variable):
-    def __init__(self, name: str, request: dict):
+    def __init__(self, name: str, request: dict = None):
         super().__init__(name, "derived_outputs")
         self.request = request
 
