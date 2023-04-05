@@ -16,11 +16,12 @@ class Parameter(Variable):
 
 
 class DerivedOutput(Variable):
-    def __init__(self, name: str):
+    def __init__(self, name: str, request: dict = None):
         super().__init__(name, "derived_outputs")
+        self.request = request
 
     def __repr__(self):
-        return f"DerivedOutput {self.key}"
+        return f"DerivedOutput {self.key} {self.request}"
 
 
 class ModelVariable(Variable):

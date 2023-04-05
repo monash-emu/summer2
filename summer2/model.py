@@ -5,7 +5,7 @@ import copy
 import logging
 from datetime import datetime
 from collections import OrderedDict
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 from warnings import warn
 import itertools
 from numbers import Real
@@ -22,7 +22,7 @@ import summer2.flows as flows
 from summer2.adjust import BaseAdjustment, FlowParam, Multiply
 from summer2.compartment import Compartment
 from summer2.derived_outputs import DerivedOutputRequest, calculate_derived_outputs
-from summer2.parameters import params
+from summer2.parameters import params, DerivedOutput
 
 from summer2.parameters.param_impl import finalize_parameters
 from summer2.runner import ModelBackend
@@ -36,6 +36,8 @@ from summer2.tracker import ModelBuildTracker, ActionType
 logger = logging.getLogger()
 
 FlowRateFunction = Callable[[List[Compartment], np.ndarray, np.ndarray, float], np.ndarray]
+OutputSource = Union[str, DerivedOutput]
+
 
 
 class BackendType:
@@ -162,6 +164,8 @@ class CompartmentalModel:
         self._finalized = False
         self._runner = None
         self.builder = None
+
+        self._default_parameters = None
 
     def _update_compartment_indices(self):
         """
@@ -938,6 +942,7 @@ class CompartmentalModel:
         parameters: dict = None,
         solver: str = SolverType.SOLVE_IVP,
         backend_args: dict = None,
+        rebuild: bool = False,
         **kwargs,
     ):
         """
@@ -959,14 +964,16 @@ class CompartmentalModel:
 
         """
 
-        # Ensure we call this before model runs, since it is now disabled inside individual
-        # flow constructors
-        self._update_compartment_indices()
-        self.finalize()
-
         parameters = parameters or {}
 
+        if rebuild:
+            self._runner = None
+
         if self._runner is None:
+            # Ensure we call this before model runs, since it is now disabled inside individual
+            # flow constructors
+            self._update_compartment_indices()
+            self.finalize()
             self._set_backend("jax", backend_args)
             self._backend.prepare_structural()
             self._runner = self.get_runner(parameters, solver=solver, **kwargs)
@@ -1041,7 +1048,7 @@ class CompartmentalModel:
         dest_strata: Optional[Dict[str, str]] = None,
         save_results: bool = True,
         raw_results: bool = False,
-    ):
+    ) -> DerivedOutput:
         """
         Adds a derived output to the model's results.
         The output will be the value of the requested flow at each timestep.
@@ -1068,7 +1075,7 @@ class CompartmentalModel:
             assert is_flow_exists, f"No flow matches: {flow_name} {source_strata} {dest_strata}"
 
         self._derived_output_graph.add_node(name)
-        self._derived_output_requests[name] = {
+        self._derived_output_requests[name] = request = {
             "request_type": DerivedOutputRequest.FLOW,
             "flow_name": flow_name,
             "source_strata": source_strata,
@@ -1076,6 +1083,7 @@ class CompartmentalModel:
             "raw_results": raw_results,
             "save_results": save_results,
         }
+        return DerivedOutput(name, request)
 
     def request_output_for_compartments(
         self,
@@ -1083,7 +1091,7 @@ class CompartmentalModel:
         compartments: List[str],
         strata: Optional[Dict[str, str]] = None,
         save_results: bool = True,
-    ):
+    ) -> DerivedOutput:
         """
         Adds a derived output to the model's results. The output
         will be the aggregate population of the requested compartments at the at each timestep.
@@ -1111,19 +1119,20 @@ class CompartmentalModel:
             assert is_match_exists, f"No compartment matches: {compartments} {strata}"
 
         self._derived_output_graph.add_node(name)
-        self._derived_output_requests[name] = {
+        self._derived_output_requests[name] = request = {
             "request_type": DerivedOutputRequest.COMPARTMENT,
             "compartments": compartments,
             "strata": strata,
             "save_results": save_results,
         }
+        return DerivedOutput(name, request)
 
     def request_aggregate_output(
         self,
         name: str,
-        sources: List[str],
+        sources: List[OutputSource],
         save_results: bool = True,
-    ):
+    ) -> DerivedOutput:
         """
         Adds a derived output to the model's results. The output will be the aggregate of other
         derived outputs.
@@ -1136,6 +1145,9 @@ class CompartmentalModel:
         """
         msg = f"A derived output named {name} already exists."
         assert name not in self._derived_output_requests, msg
+
+        sources = [_resolve_source(s) for s in sources]
+
         for source in sources:
             assert (
                 source in self._derived_output_requests
@@ -1143,19 +1155,20 @@ class CompartmentalModel:
             self._derived_output_graph.add_edge(source, name)
 
         self._derived_output_graph.add_node(name)
-        self._derived_output_requests[name] = {
+        self._derived_output_requests[name] = request = {
             "request_type": DerivedOutputRequest.AGGREGATE,
             "sources": sources,
             "save_results": save_results,
         }
+        return DerivedOutput(name, request)
 
     def request_cumulative_output(
         self,
         name: str,
-        source: str,
+        source: OutputSource,
         start_time: int = None,
         save_results: bool = True,
-    ):
+    ) -> DerivedOutput:
         """
         Adds a derived output to the model's results. The output will be the accumulated values of
         another derived output over the model's time period.
@@ -1169,17 +1182,19 @@ class CompartmentalModel:
         """
         msg = f"A derived output named {name} already exists."
         assert name not in self._derived_output_requests, msg
+        source = _resolve_source(source)
         assert source in self._derived_output_requests, f"Source {source} has not been requested."
         self._derived_output_graph.add_node(name)
         self._derived_output_graph.add_edge(source, name)
-        self._derived_output_requests[name] = {
+        self._derived_output_requests[name] = request = {
             "request_type": DerivedOutputRequest.CUMULATIVE,
             "source": source,
             "start_time": start_time,
             "save_results": save_results,
         }
+        return DerivedOutput(name, request)
 
-    def request_function_output(self, name: str, func: params.Function, save_results: bool = True):
+    def request_function_output(self, name: str, func: params.Function, save_results: bool = True) -> DerivedOutput:
         """
         Request a generic Function output
 
@@ -1201,29 +1216,52 @@ class CompartmentalModel:
                 self._derived_output_graph.add_edge(source, name)
 
         self._derived_output_graph.add_node(name)
-        self._derived_output_requests[name] = {
+        self._derived_output_requests[name] = request = {
             "request_type": DerivedOutputRequest.PARAM_FUNCTION,
             "func": func,
             "save_results": save_results,
         }
+        return DerivedOutput(name, request)
 
-    def request_computed_value_output(self, name: str, save_results: bool = True):
+    def request_computed_value_output(self, name: str, save_results: bool = True) -> DerivedOutput:
         """
         Save a computed value process output to derived outputs
 
         Args:
             name (str): Name (key) of computed value process
             save_results (bool, optional): Save outputs (or discard if False)
+
+        Returns:
+            The resulting DerivedOutput
         """
         msg = f"A derived output named {name} already exists."
         assert name not in self._derived_output_requests, msg
 
         self._derived_output_graph.add_node(name)
-        self._derived_output_requests[name] = {
+        self._derived_output_requests[name] = request = {
             "request_type": DerivedOutputRequest.COMPUTED_VALUE,
             "name": name,
             "save_results": save_results,
         }
+        return DerivedOutput(name, request)
+    
+    def request_track_modelled_value(self, name: str, f: GraphObject) -> DerivedOutput:
+        """
+        Save the output of a computegraph Function as a derived output
+
+        Args:
+            name: Name (key) of derived output
+            f: The GraphObject to save
+
+        Returns:
+            The resulting DerivedOutput
+        """
+        if name in self._computed_values_graph_dict:
+            if self._computed_values_graph_dict[name] is not f:
+                raise KeyError(f"Name {name} already used to track another function", name)
+        else:
+            self.add_computed_value_func(name, f)
+        return self.request_computed_value_output(name)
 
     def add_computed_value_func(self, name: str, func: params.Function):
         if name in self._computed_values_graph_dict:
@@ -1249,11 +1287,18 @@ class CompartmentalModel:
         idx = self._get_ref_idx()
         return pd.DataFrame(self.derived_outputs, index=idx)
 
-    def get_input_parameters(self):
+    def get_input_parameters(self) -> set:
         self.finalize()
         all_in_var = set(self.graph.get_input_variables())
         all_in_var = all_in_var.union(set(self._do_tracker_graph.get_input_variables()))
         return set([v.key for v in all_in_var if v.source == "parameters"])
+    
+    def set_default_parameters(self, parameters:dict):
+        self._runner = None
+        self._default_parameters = parameters
+
+    def get_default_parameters(self) -> dict:
+        return self._default_parameters
 
     def query_compartments(self, query: dict = None, tags: List = None, as_idx=False):
         from summer2.inspect import query_compartments
@@ -1279,6 +1324,7 @@ class ModelResults:
         self._input_params = model.get_input_parameters()
         self._derived_outputs_idx_cache = None
         self._runner_dict = runner_dict
+        self.default_parameters = model.get_default_parameters() or {}
 
     def get_outputs_df(self):
         return self.model.get_outputs_df()
@@ -1286,7 +1332,7 @@ class ModelResults:
     def get_derived_outputs_df(self):
         return self.model.get_derived_outputs_df()
 
-    def run(self, parameters: dict, filter=True, expand=True):
+    def run(self, parameters: dict, filter=True, expand=True, ret_raw=True):
         if expand:
             parameters = expand_nested_dict(parameters)
         if filter:
@@ -1294,15 +1340,29 @@ class ModelResults:
             if self.model.builder:
                 parameters = {k: self.model._type_validators[k](v) for k, v in parameters.items()}
 
-        results = self._run_func(parameters=parameters)
+        # Use the default parameters (if any) to infill anything not supplied
+        base_params = self.default_parameters.copy()
+        base_params.update(parameters)
+
+        results = self._run_func(parameters=base_params)
 
         self.outputs = np.array(results["outputs"])
         self.derived_outputs = {k: np.array(v) for k, v in results["derived_outputs"].items()}
         self.model.outputs = self.outputs
         self.model.derived_outputs = self.derived_outputs
-        return results
+        if ret_raw:
+            return results
 
+# Additional validation functions
 
 def _validate_flowparam(param):
     if not (isinstance(param, GraphObject) or isinstance(param, Real)):
         raise TypeError(f"Flow parameter must be GraphObject or float, not {type(param)}")
+
+def _resolve_source(src: OutputSource) -> str:
+    if isinstance(src, DerivedOutput):
+        return src.key
+    elif isinstance (src, str):
+        return src
+    else:
+        raise TypeError("Invalid derived output source type", src, type(src))

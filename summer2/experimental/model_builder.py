@@ -34,7 +34,8 @@ class ModelBuilder:
     def __init__(self, params: dict, param_class: type):
         self._params = params
         self._params_expanded = expand_nested_dict(params, include_parents=True)
-        self.params = self._pyd_params = param_class(**params)
+        self.params: param_class = param_class(**params)
+        self._pyd_params = self.params
         label_parameters(self.params, params)
 
     def set_model(self, model: CompartmentalModel):
