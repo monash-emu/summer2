@@ -93,6 +93,9 @@ Releases are numbered using [Semantic Versioning](https://semver.org/)
   - Initial release
 - 1.2.1
   - Dropped support for Python 3.7.  Variety of bugfixes and expanded features, see documentation
+- 1.2.2
+  - Added capture utils
+  - Removed inner jit in model building to improve debugging
 
 ## Release process
 
