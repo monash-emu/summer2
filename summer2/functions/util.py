@@ -64,3 +64,61 @@ def binary_search_ge(x: float, points: jax.Array) -> int:
 
     low, high = lax.while_loop(cond, body, (0, len(points) - 1))
     return lax.cond(x < points[high], lambda: low, lambda: high)
+
+def capture_dict(**kwargs) -> Function:
+    """Create a Function that captures a dictionary
+
+    Returns:
+        The GraphObject representation of the dict
+    """
+    return Function(_capture_dict, kwargs=kwargs)
+
+def _capture_dict(**kwargs):
+    return kwargs
+
+
+def capture_array(arr_obj: list, dtype=None) -> Function:
+    """Create a GraphObject representation of an (optionally nested) array type,
+    declared as a list
+
+    Args:
+        arr_obj: A list of the form consumed by (j)np.array(arr_obj)
+        dtype (optional): Datatype of the returned array (inferred by default)
+
+    Returns:
+        The GraphObject representation of the array
+    """
+    ishape = _infer_shape(arr_obj)
+    
+    if len(ishape) > 1:
+        # arr_obj is a nested listed, which we must flatten to expose args to the graph
+        flattened = _flatten_arr_obj(arr_obj)
+        
+        def _capture_array_reshape(*args):
+            return jnp.array(args, dtype=dtype).reshape(ishape)
+        
+        return Function(_capture_array_reshape, args=flattened)
+    else:
+        # Simple instance of 1d array
+        def _capture_array(*args):
+            return jnp.array(args, dtype=dtype)
+    
+        return Function(_capture_array, args=arr_obj)
+
+def _infer_shape(arr_obj: list, cur_shape=()):
+    new_shape = (*cur_shape, len(arr_obj))
+    if isinstance(arr_obj[0], list):
+        msg = "All subarrays must be lists"
+        assert all([isinstance(sub_arr, list) for sub_arr in arr_obj]), msg
+        return _infer_shape(arr_obj[0], new_shape)
+    return new_shape
+
+def _flatten_arr_obj(arr_obj: list, cur_obj=None):
+    if cur_obj is None:
+        cur_obj = []
+    for v in arr_obj:
+        if isinstance(v, list):
+            _flatten_arr_obj(v, cur_obj)
+        else:
+            cur_obj.append(v)
+    return cur_obj
