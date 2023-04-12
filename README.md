@@ -22,7 +22,7 @@ Some helpful links to learn more:
 
 ## Installation and Quickstart
 
-This project requires at least Python 3.7
+This project requires at least Python 3.8
 
 Set up and activate an appropriate virtual environment, then install the `summerepi2` package from PyPI
 
@@ -32,8 +32,9 @@ pip install summerepi2
 
 Important note for Windows users:
 summerepi2 relies on the Jax framework for fast retargetable computing.  This is automatically
-installed under Linux, OSX, and WSL environments.  If you are using Windows, you can either install
-via WSL, or run the following command after installing
+installed under Linux, OSX, and WSL environments. 
+It is strongly recommended that you use WSL, but in instances were you are unable to do so,
+an unofficial build of jax can be installed by running the following command
 
 ```bash
 pip install jax[cpu]==0.3.24 -f https://whls.blob.core.windows.net/unstable/index.html
@@ -90,6 +91,8 @@ Releases are numbered using [Semantic Versioning](https://semver.org/)
 
 - 1.0.0/1:
   - Initial release
+- 1.2.1
+  - Dropped support for Python 3.7.  Variety of bugfixes and expanded features, see documentation
 
 ## Release process
 

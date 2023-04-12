@@ -425,7 +425,7 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
 
     timestep_cg, static_cg = param_frozen_cg.freeze(ts_vars)
 
-    timestep_graph_func = jit(timestep_cg.get_callable())
+    timestep_graph_func = timestep_cg.get_callable()
     # timestep_graph_func = timestep_cg.get_callable()
     static_graph_func = static_cg.get_callable()
 
