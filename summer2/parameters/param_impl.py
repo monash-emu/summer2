@@ -139,7 +139,6 @@ def get_reparameterized_dict(d):
 
 
 def map_flow_keys(m: CompartmentalModel) -> dict:
-
     from summer2.adjust import Overwrite
 
     realised_flows = {}
@@ -153,6 +152,12 @@ def map_flow_keys(m: CompartmentalModel) -> dict:
                 full_flow.append(a.param.obj)
         out_func = full_flow[0]
         for fparam in full_flow[1:]:
+            # In the case of simply mulitplying by a scalar,
+            # we unbox the value from the GraphObject,
+            # to avoid cluttering up the graph
+            if isinstance(fparam, Data):
+                if isinstance(fparam.data, Real):
+                    fparam = fparam.data
             out_func = out_func * fparam
         realised_flows[i] = GraphObjectParameter(out_func)
 
