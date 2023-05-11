@@ -11,7 +11,7 @@ which can be calculated (or "derived") using the model results, which are the:
 """
 import logging
 
-from jax import numpy as jnp
+from jax import numpy as jnp, jit
 import numpy as np
 
 from computegraph import ComputeGraph
@@ -24,7 +24,6 @@ logger = logging.getLogger()
 
 
 def build_flow_output(request, name, times, model_flows, idx_cache=None):
-
     flow_indices = []
     for flow_idx, flow in enumerate(model_flows):
         is_matching_flow = (
@@ -58,7 +57,6 @@ def build_flow_output(request, name, times, model_flows, idx_cache=None):
 
 
 def build_compartment_output(request, name, compartments):
-
     req_compartments = request["compartments"]
     strata = request["strata"]
     comps = ((i, c) for i, c in enumerate(compartments) if c.has_name_in_list(req_compartments))
@@ -116,7 +114,7 @@ def build_computed_value_output(request, name):
     return Function(lambda x: x[name], [ModelVariable("computed_values")])
 
 
-def build_derived_outputs_runner(model):
+def build_derived_outputs_runner(model, whitelist=None, jit_compile=False):
     graph_dict = {}
     out_keys = []
     for name, request in model._derived_output_requests.items():
@@ -142,8 +140,14 @@ def build_derived_outputs_runner(model):
 
     cg = ComputeGraph(graph_dict)
 
-    if model._derived_outputs_whitelist:
-        out_keys = model._derived_outputs_whitelist
+    whitelist = whitelist or model._derived_outputs_whitelist
+
+    if whitelist:
+        out_keys = whitelist
         cg = cg.filter(targets=out_keys)
 
-    return cg, cg.get_callable(targets=out_keys)
+    out_func = cg.get_callable(targets=out_keys)
+    if jit_compile:
+        out_func = jit(out_func)
+
+    return cg, out_func
