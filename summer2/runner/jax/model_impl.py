@@ -3,12 +3,11 @@
 This is a mess right now!
 """
 
-from functools import partial
 from dataclasses import dataclass
 
 import numpy as np
 
-from jax import lax, jit, numpy as jnp
+from jax import lax, numpy as jnp
 
 from summer2.runner.jax import ode
 
@@ -76,7 +75,6 @@ def build_get_infectious_multipliers(runner, debug=False):
     def get_infectious_multipliers(
         time, compartment_values, cur_graph_outputs, compartment_infectiousness
     ):
-
         infection_frequency = {}
         infection_density = {}
 
@@ -88,7 +86,6 @@ def build_get_infectious_multipliers(runner, debug=False):
         per_strain_out = {}
 
         for strain_idx, strain in enumerate(runner.model._disease_strains):
-
             strain_compartment_infectiousness = compartment_infectiousness[strain]
             strain_infectious_idx = runner._strain_infectious_indexers[strain]
             strain_category_indexer = runner._strain_category_indexers[strain]
@@ -148,7 +145,6 @@ def build_get_infectious_multipliers(runner, debug=False):
 
 
 def build_get_flow_weights(runner: ModelBackend):
-
     m = runner.model
 
     if "model_variables.time" in m.graph.dag:
@@ -160,7 +156,6 @@ def build_get_flow_weights(runner: ModelBackend):
         tv_flow_map = {}
 
     def get_flow_weights(cur_graph_outputs, static_flow_weights):
-
         flow_weights = jnp.copy(static_flow_weights)
 
         for k, v in tv_flow_map.items():
@@ -186,7 +181,6 @@ def _build_calc_computed_values(runner):
 
 
 def build_get_flow_rates(runner, ts_graph_func, get_infectious_multipliers=None, debug=False):
-
     # calc_computed_values = build_calc_computed_values(runner)
     get_flow_weights = build_get_flow_weights(runner)
 
@@ -198,7 +192,6 @@ def build_get_flow_rates(runner, ts_graph_func, get_infectious_multipliers=None,
     infectious_flow_indices = jnp.array(runner.infectious_flow_indices)
 
     def get_flow_rates(compartment_values: jnp.array, time, static_graph_vals, model_data):
-
         compartment_values = clean_compartments(compartment_values)
 
         sources = {
@@ -259,9 +252,9 @@ def build_get_compartment_rates(runner):
     def get_compartment_rates(compartment_values, flow_rates):
         comp_rates = jnp.zeros_like(compartment_values)
 
-        for (flow_src, comp_target) in accum_maps["positive"]:
+        for flow_src, comp_target in accum_maps["positive"]:
             comp_rates = comp_rates.at[comp_target].add(flow_rates[flow_src])
-        for (flow_src, comp_target) in accum_maps["negative"]:
+        for flow_src, comp_target in accum_maps["negative"]:
             comp_rates = comp_rates.at[comp_target].add(-flow_rates[flow_src])
 
         return comp_rates
@@ -270,7 +263,6 @@ def build_get_compartment_rates(runner):
 
 
 def build_get_rates(runner, ts_graph_func):
-
     get_infectious_multipliers = build_get_infectious_multipliers(runner)
     get_flow_rates = build_get_flow_rates(runner, ts_graph_func, get_infectious_multipliers)
     get_flow_rates_debug = build_get_flow_rates(
@@ -308,7 +300,7 @@ def get_accumulation_maps(runner):
         targets = []
         src_idx = []
         remainder = []
-        for (src_flow, target) in flow_map:
+        for src_flow, target in flow_map:
             if target not in targets:
                 targets.append(target)
                 src_idx.append(src_flow)
@@ -337,7 +329,6 @@ def build_get_compartment_infectiousness(model):
     # i.e. it is done once at the start of a model run, but
     # is parameterized (non-structural)
     def get_compartment_infectiousness(static_graph_values):
-
         # Find the infectiousness multipliers for each compartment being implemented in the model.
         compartment_infectiousness = jnp.ones(len(model.compartments))
 
@@ -382,6 +373,9 @@ def build_get_compartment_infectiousness(model):
     return get_compartment_infectiousness
 
 
+# Returned by the one_step runner function - the complete internal state
+# of the model at a given timestep
+# Does not include derived outputs - these are a post-process
 @dataclass
 class StepResults:
     flow_rates: jnp.array
@@ -395,8 +389,9 @@ class StepResults:
     infect_mul_per_strain: dict
 
 
-def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solver_args=None):
-
+def build_run_model(
+    runner, base_params=None, dyn_params=None, solver=None, solver_args=None, derived_outputs=None
+):
     if dyn_params is None:
         dyn_params = runner.model.get_input_parameters()
 
@@ -484,7 +479,9 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
     calc_initial_pop = get_calculate_initial_pop(runner.model)
     get_compartment_infectiousness = build_get_compartment_infectiousness(runner.model)
 
-    do_cg, calc_derived_outputs = build_derived_outputs_runner(runner.model)
+    do_cg, calc_derived_outputs = build_derived_outputs_runner(
+        runner.model, whitelist=derived_outputs
+    )
 
     m = runner.model
     if "model_variables.time" in m.graph.dag:
@@ -503,24 +500,7 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
     )
     do_base_params = {k: v for k, v in base_params.items() if k in do_params}
 
-    def run_model(parameters):
-
-        static_graph_vals = static_graph_func(parameters=parameters)
-        initial_population = calc_initial_pop(static_graph_vals)
-
-        static_flow_weights = jnp.zeros(len(runner.model.flows))
-        for k, v in static_flow_map.items():
-            val = static_graph_vals[k]
-            static_flow_weights = static_flow_weights.at[v].set(val)
-
-        compartment_infectiousness = get_compartment_infectiousness(static_graph_vals)
-        model_data = {
-            "compartment_infectiousness": compartment_infectiousness,
-            "static_flow_weights": static_flow_weights,
-        }
-
-        outputs = get_ode_solution(initial_population, times, static_graph_vals, model_data)
-
+    def get_flows_for_outputs(outputs, static_graph_vals, model_data):
         # Empty array to kick-start flow rates from outputs
         flow_rates_full = jnp.empty((len(m.times), len(m.flows)))
 
@@ -542,7 +522,47 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
             f, (flow_rates_full, cv_out), jnp.array(range(len(m.times)))
         )
 
-        # out_flows, out_cv = get_flows_for_outputs(outputs, times, static_graph_vals, model_data)
+        return out_flows, out_cv
+
+    def run_model(parameters):
+        static_graph_vals = static_graph_func(parameters=parameters)
+        initial_population = calc_initial_pop(static_graph_vals)
+
+        static_flow_weights = jnp.zeros(len(runner.model.flows))
+        for k, v in static_flow_map.items():
+            val = static_graph_vals[k]
+            static_flow_weights = static_flow_weights.at[v].set(val)
+
+        compartment_infectiousness = get_compartment_infectiousness(static_graph_vals)
+        model_data = {
+            "compartment_infectiousness": compartment_infectiousness,
+            "static_flow_weights": static_flow_weights,
+        }
+
+        outputs = get_ode_solution(initial_population, times, static_graph_vals, model_data)
+
+        # # Empty array to kick-start flow rates from outputs
+        # flow_rates_full = jnp.empty((len(m.times), len(m.flows)))
+
+        # # And likewise for computed values (but as a dict)
+        # cv_out = {}
+        # for k in m._computed_values_graph_dict:
+        #     cv_out[k] = jnp.empty((len(m.times),))
+
+        # def f(carry, i):
+        #     frate_full, cur_cv = carry
+        #     t = model_times[i]
+        #     frates, cvals = get_flow_rates(outputs[i], t, static_graph_vals, model_data)
+        #     frate_full = frate_full.at[i].set(frates)
+        #     for k, v in cvals.items():
+        #         cur_cv[k] = cur_cv[k].at[i].set(v)
+        #     return (frate_full, cur_cv), None
+
+        # (out_flows, out_cv), _ = lax.scan(
+        #     f, (flow_rates_full, cv_out), jnp.array(range(len(m.times)))
+        # )
+
+        out_flows, out_cv = get_flows_for_outputs(outputs, static_graph_vals, model_data)
 
         model_variables = {"outputs": outputs, "flows": out_flows, "computed_values": out_cv}
 
@@ -562,7 +582,6 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
     ons_get_inf_mul = build_get_infectious_multipliers(runner, True)
 
     def one_step(parameters: dict = None, t: float = None, comp_vals=None):
-
         static_graph_vals = static_graph_func(parameters=parameters)
 
         if t is None:
@@ -618,13 +637,13 @@ def build_run_model(runner, base_params=None, dyn_params=None, solver=None, solv
         "calc_initial_pop": calc_initial_pop,
         "get_compartment_infectiousness": get_compartment_infectiousness,
         "get_ode_solution": get_ode_solution,
-        "calc_derived_outputs": calc_derived_outputs,
-        "timestep_graph_func": timestep_graph_func,
-        "timestep_cg": timestep_cg,
-        "static_cg": static_cg,
-        "static_graph_func": static_graph_func,
-        "one_step": one_step,
-        "derived_outputs_cg": do_cg,
+        "calc_derived_outputs": calc_derived_outputs,  # Callable for derived outputs
+        "timestep_cg": timestep_cg,  # Computegraph for time-varying processes
+        "timestep_graph_func": timestep_graph_func,  # Callable for timestep graph
+        "static_cg": static_cg,  # Computegraph for static portion of model
+        "static_graph_func": static_graph_func,  # Callable for static graph
+        "one_step": one_step,  # Single (euler) step run function
+        "derived_outputs_cg": do_cg,  # DerivedOutputs computegraph
         "get_rates_debug": rates_funcs["get_rates_debug"],
     }
 
