@@ -29,7 +29,7 @@ from summer2.runner import ModelBackend
 from summer2.runner.jax.model_impl import StepResults
 from summer2.solver import SolverType, solve_ode
 from summer2.stratification import Stratification
-from summer2.utils import get_scenario_start_index, ref_times_to_dti, clean_compartment_values
+from summer2.utils import get_scenario_start_index, ref_times_to_dti, Epoch
 from summer2.population import get_unique_strat_groups, filter_by_strata
 from summer2.tracker import ModelBuildTracker, ActionType
 
@@ -37,7 +37,6 @@ logger = logging.getLogger()
 
 FlowRateFunction = Callable[[List[Compartment], np.ndarray, np.ndarray, float], np.ndarray]
 OutputSource = Union[str, DerivedOutput]
-
 
 
 class BackendType:
@@ -89,6 +88,19 @@ class CompartmentalModel:
         timestep: float = 1.0,
         ref_date: datetime = None,
     ):
+        # Set the ref_date; the datetime object equivalent to times[0]
+        self.ref_date = ref_date
+
+        # If a ref_date was supplied, we can use datetime objects for the time range here,
+        # we just need to convert them first
+
+        if all([isinstance(t, datetime) for t in times]):
+            if epoch := self.get_epoch():
+                start_t, end_t = times
+                times = (epoch.datetime_to_number(start_t), epoch.datetime_to_number(end_t))
+            else:
+                raise TypeError("Times supplied as datetime but no ref_date set")
+
         start_t, end_t = times
         assert end_t > start_t, "End time must be greater than start time"
         time_period = end_t - start_t
@@ -99,9 +111,6 @@ class CompartmentalModel:
         assert num_steps % 1 == 0, msg
         self.times = np.linspace(start_t, end_t, num=int(num_steps))
         self.timestep = timestep
-
-        # Set the ref_date; the datetime object equivalent to times[0]
-        self.ref_date = ref_date
 
         if isinstance(infectious_compartments, str):
             infectious_compartments = [infectious_compartments]
@@ -801,7 +810,6 @@ class CompartmentalModel:
                 start_age = int(ages[age_idx])
                 end_age = int(ages[age_idx + 1])
                 for comp in prev_compartment_names:
-
                     source = comp.stratify(strat.name, str(start_age))
                     dest = comp.stratify(strat.name, str(end_age))
                     ageing_rate = 1.0 / (end_age - start_age)
@@ -1194,7 +1202,9 @@ class CompartmentalModel:
         }
         return DerivedOutput(name, request)
 
-    def request_function_output(self, name: str, func: params.Function, save_results: bool = True) -> DerivedOutput:
+    def request_function_output(
+        self, name: str, func: params.Function, save_results: bool = True
+    ) -> DerivedOutput:
         """
         Request a generic Function output
 
@@ -1244,7 +1254,7 @@ class CompartmentalModel:
             "save_results": save_results,
         }
         return DerivedOutput(name, request)
-    
+
     def request_track_modelled_value(self, name: str, f: GraphObject) -> DerivedOutput:
         """
         Save the output of a computegraph Function as a derived output
@@ -1278,6 +1288,12 @@ class CompartmentalModel:
             times = self.times
         return times
 
+    def get_epoch(self):
+        if self.ref_date:
+            return Epoch(self.ref_date)
+        else:
+            return None
+
     def get_outputs_df(self):
         idx = self._get_ref_idx()
         column_str = [str(c) for c in self.compartments]
@@ -1292,8 +1308,8 @@ class CompartmentalModel:
         all_in_var = set(self.graph.get_input_variables())
         all_in_var = all_in_var.union(set(self._do_tracker_graph.get_input_variables()))
         return set([v.key for v in all_in_var if v.source == "parameters"])
-    
-    def set_default_parameters(self, parameters:dict):
+
+    def set_default_parameters(self, parameters: dict):
         self._runner = None
         self._default_parameters = parameters
 
@@ -1318,13 +1334,16 @@ class CompartmentalModel:
 
 
 class ModelResults:
-    def __init__(self, model, run_func, runner_dict=None):
+    def __init__(self, model: CompartmentalModel, run_func, runner_dict=None):
         self.model = model
         self._run_func = run_func
+        self.function = run_func
         self._input_params = model.get_input_parameters()
         self._derived_outputs_idx_cache = None
         self._runner_dict = runner_dict
+        self.impl_dict = runner_dict
         self.default_parameters = model.get_default_parameters() or {}
+        self.ref_idx = model._get_ref_idx()
 
     def get_outputs_df(self):
         return self.model.get_outputs_df()
@@ -1333,6 +1352,20 @@ class ModelResults:
         return self.model.get_derived_outputs_df()
 
     def run(self, parameters: dict, filter=True, expand=True, ret_raw=True):
+        """Run the model for a set of input parameters
+           This is mostly a wrapper for the AuTuMN toolkit, and is not threadsafe!
+           New clients should call run_model instead
+
+        Args:
+            parameters: Input parameters for this run
+            filter: Filter the input parameters dictionary so that only
+                    valid input params are passed to the model
+            expand: Expand a nested dictionary into flat parameters
+            ret_raw: Return the outputs of the (jax) _run_func directly
+
+        Returns:
+            (optional) returned jax structure from _run_func
+        """
         if expand:
             parameters = expand_nested_dict(parameters)
         if filter:
@@ -1353,16 +1386,34 @@ class ModelResults:
         if ret_raw:
             return results
 
+    def run_model(self, parameters):
+        """_summary_
+
+        Args:
+            parameters (_type_): _description_
+            out_format (str, optional): _description_. Defaults to "pandas".
+
+        Returns:
+            _type_: _description_
+        """
+        results = self._run_func(parameters=parameters)
+
+        derived_outputs = {k: np.array(v) for k, v in results["derived_outputs"].items()}
+        return pd.DataFrame(derived_outputs, index=self.ref_idx)
+
+
 # Additional validation functions
+
 
 def _validate_flowparam(param):
     if not (isinstance(param, GraphObject) or isinstance(param, Real)):
         raise TypeError(f"Flow parameter must be GraphObject or float, not {type(param)}")
 
+
 def _resolve_source(src: OutputSource) -> str:
     if isinstance(src, DerivedOutput):
         return src.key
-    elif isinstance (src, str):
+    elif isinstance(src, str):
         return src
     else:
         raise TypeError("Invalid derived output source type", src, type(src))

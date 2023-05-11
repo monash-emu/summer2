@@ -48,3 +48,70 @@ def clean_compartment_values(compartment_values: np.ndarray):
     zero_mask = comp_vals < 0
     comp_vals[zero_mask] = 0
     return comp_vals
+
+
+from numbers import Real
+
+
+class Epoch:
+    """Epoch converts between numeric offset values (eg model times), and concrete datetime values"""
+
+    def __init__(self, ref_date: datetime, unit: timedelta = timedelta(1)):
+        """Create an Epoch for conversion. ref_date will be equivalent to 0.0,
+        with other dates offset in units of unit
+
+        Args:
+            ref_date: The '0-time' reference data
+            unit (optional): timedelta unit equivalent to 1.0 steps in numeric representation
+        """
+        self.ref_date = ref_date
+        self.unit = unit
+
+    def __repr__(self):
+        return f"Epoch from {self.ref_date}, in units of {self.unit}"
+
+    def index_to_dti(self, index: pd.Index) -> pd.DatetimeIndex:
+        """Convert an index (or iterable) of numeric values to a DatetimeIndex
+
+        Args:
+            index (pd.Index): Inputs to convert
+
+        Returns:
+            Equivalent DatetimeIndex
+        """
+        if not isinstance(index, pd.Index):
+            index = pd.Index(index)
+        return self.ref_date + index * self.unit
+
+    def dti_to_index(self, index: pd.DatetimeIndex) -> pd.Index:
+        """Convert a DatetimeIndex to its equivalent numeric representation
+
+        Args:
+            index: The input index to convert
+
+        Returns:
+            Equivalent numerical index
+        """
+        return (index - self.ref_date) / self.unit
+
+    def number_to_datetime(self, n: Real) -> datetime:
+        """Convert a single number to a datetime
+
+        Args:
+            n: The number
+
+        Returns:
+            The datetime
+        """
+        return self.ref_date + n * self.unit
+
+    def datetime_to_number(self, d: datetime) -> float:
+        """Convert a datetime number to a float
+
+        Args:
+            d: The datetime
+
+        Returns:
+            The number
+        """
+        return (d - self.ref_date) / self.unit
