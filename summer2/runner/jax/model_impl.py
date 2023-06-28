@@ -147,10 +147,13 @@ def build_get_infectious_multipliers(runner, debug=False):
 def build_get_flow_weights(runner: ModelBackend):
     m = runner.model
 
-    if "model_variables.time" in m.graph.dag:
-        tvkeys = list(m.graph.filter(sources="model_variables.time").dag)
+    dag_keys = list(m.graph.dag)
+    mvars = [k for k in dag_keys if k.startswith("model_variables.")]
+
+    if len(mvars):
+        tv_keys = list(m.graph.filter(sources=mvars).dag)
         tv_flow_map = {
-            k: m._flow_key_map[k] for k in set(m._flow_key_map).intersection(set(tvkeys))
+            k: m._flow_key_map[k] for k in set(m._flow_key_map).intersection(set(tv_keys))
         }
     else:
         tv_flow_map = {}
