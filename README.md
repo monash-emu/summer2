@@ -96,6 +96,8 @@ Releases are numbered using [Semantic Versioning](https://semver.org/)
 - 1.2.2
   - Added capture utils
   - Removed inner jit in model building to improve debugging
+- 1.2.4
+  - CompartmentValues not functioning previously; include more comprehensive check in graph split
 
 ## Release process
 
