@@ -484,8 +484,12 @@ def build_run_model(
     )
 
     m = runner.model
-    if "model_variables.time" in m.graph.dag:
-        tv_keys = list(m.graph.filter(sources="model_variables.time").dag)
+    dag_keys = list(m.graph.dag)
+
+    mvars = [k for k in dag_keys if k.startswith("model_variables.")]
+
+    if len(mvars):
+        tv_keys = list(m.graph.filter(sources=mvars).dag)
     else:
         tv_keys = []
 
