@@ -100,6 +100,8 @@ Releases are numbered using [Semantic Versioning](https://semver.org/)
   - CompartmentValues not functioning previously; include more comprehensive check in graph split
 - 1.2.5
   - Previous issue was not resolved correctly; bugfix-bugfix release
+- 1.2.6
+  - Make full (comparment) outputs optional for jax runners
 
 ## Release process
 

@@ -393,7 +393,13 @@ class StepResults:
 
 
 def build_run_model(
-    runner, base_params=None, dyn_params=None, solver=None, solver_args=None, derived_outputs=None
+    runner,
+    base_params=None,
+    dyn_params=None,
+    solver=None,
+    solver_args=None,
+    derived_outputs=None,
+    include_full_outputs=True,
 ):
     if dyn_params is None:
         dyn_params = runner.model.get_input_parameters()
@@ -581,10 +587,13 @@ def build_run_model(
         )
 
         # return {"outputs": outputs, "model_data": model_data}
-        return {
-            "outputs": outputs,
+        output_dict = {
             "derived_outputs": derived_outputs,
         }  # "model_data": model_data}
+        if include_full_outputs:
+            output_dict["outputs"] = outputs
+
+        return output_dict
 
     ons_get_inf_mul = build_get_infectious_multipliers(runner, True)
 

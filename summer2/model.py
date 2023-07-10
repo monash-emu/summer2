@@ -919,7 +919,14 @@ class CompartmentalModel:
 
         return jax_runner_dict["one_step"](parameters, t)
 
-    def get_runner(self, parameters: dict, dyn_params: List = None, jit=True, **backend_args):
+    def get_runner(
+        self,
+        parameters: dict,
+        dyn_params: List = None,
+        jit=True,
+        include_full_outputs=True,
+        **backend_args,
+    ):
         self._update_compartment_indices()
         self.finalize()
 
@@ -936,7 +943,11 @@ class CompartmentalModel:
             parameters = {k: self._type_validators[k](v) for k, v in parameters.items()}
 
         jax_run_func, jax_runner_dict = build_run_model(
-            self._backend, base_params=parameters, dyn_params=dyn_params, **backend_args
+            self._backend,
+            base_params=parameters,
+            dyn_params=dyn_params,
+            include_full_outputs=include_full_outputs,
+            **backend_args,
         )
         if jit:
             from jax import jit as jjit
