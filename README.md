@@ -102,6 +102,8 @@ Releases are numbered using [Semantic Versioning](https://semver.org/)
   - Previous issue was not resolved correctly; bugfix-bugfix release
 - 1.2.6
   - Make full (comparment) outputs optional for jax runners
+- 1.2.8
+  - Improve time varying functions (allow GraphObjects in x values)
 
 ## Release process
 
