@@ -7,9 +7,15 @@ with build_sigmoidal_multicurve producing a dynamic (parameterizable) version of
 
 """
 
-from jax import Array, lax, numpy as jnp
+from jax import Array, lax, numpy as jnp, lax
 
 from .util import binary_search_ge
+from collections import namedtuple
+
+# Define datatypes used within interpolation functions
+# These carry intermediary compute-once values like ranges/bounds
+
+InterpolatorScaleData = namedtuple("InterpolatorScaleData", ["points", "ranges", "bounds"])
 
 
 def _uncorrected_sigmoid(x: float, curvature: float) -> float:
@@ -46,7 +52,7 @@ def make_norm_sigmoid(curvature: float) -> callable:
     return sig
 
 
-def build_sigmoidal_multicurve(x_points: Array, curvature=16.0) -> callable:
+def build_sigmoidal_multicurve(curvature=16.0) -> callable:
     """Build a sigmoidal smoothing function across points specified by
     x_points; the returned function takes the y values as arguments in
     form of a scale_data dict with keys [min, max, values, ranges]
@@ -59,90 +65,76 @@ def build_sigmoidal_multicurve(x_points: Array, curvature=16.0) -> callable:
     Returns:
         The multisigmoidal function of (x, scale_data)
     """
-    xranges = jnp.diff(jnp.array(x_points))
-    x_points = jnp.array(x_points)
-
-    xmin = x_points.min()
-    xmax = x_points.max()
-    xbounds = jnp.array([xmin, xmax])
 
     sig = make_norm_sigmoid(curvature)
 
-    def get_curve_at_t(t, values, ranges):
+    def _get_sigmoidal_curve_at_x(x, xdata, ydata):
         # idx = sum(t >= x_points) - 1
-        idx = binary_search_ge(t, x_points)
+        idx = binary_search_ge(x, xdata.points)
 
-        offset = t - x_points[idx]
-        relx = offset / xranges[idx]
+        offset = x - xdata.points[idx]
+        relx = offset / xdata.ranges[idx]
         rely = sig(relx)
-        return values[idx] + (rely * ranges[idx])
+        return ydata.points[idx] + (rely * ydata.ranges[idx])
 
-    def scaled_curve(t: float, ydata: dict):
+    def interpolate_sigmoidal(t: float, xdata: InterpolatorScaleData, ydata: InterpolatorScaleData):
         # Branch on whether t is in bounds
-        bounds_state = sum(t > xbounds)
+        bounds_state = sum(t > xdata.bounds)
         branches = [
-            lambda _, __, ___: ydata["min"],
-            get_curve_at_t,
-            lambda _, __, ___: ydata["max"],
+            lambda _, __, ___: ydata.bounds[0],
+            _get_sigmoidal_curve_at_x,
+            lambda _, __, ___: ydata.bounds[1],
         ]
-        return lax.switch(bounds_state, branches, t, ydata["values"], ydata["ranges"])
+        return lax.switch(bounds_state, branches, t, xdata, ydata)
 
-    return scaled_curve
+    return interpolate_sigmoidal
 
 
-def build_linear_interpolator(x_points: Array) -> callable:
-    """Build a sigmoidal smoothing function across points specified by
-    x_points; the returned function takes the y values as arguments in
-    form of a scale_data dict with keys [min, max, values, ranges]
+#
+# Linear Interpolation
+#
+
+
+def _get_linear_curve_at_x(
+    x: float, xdata: InterpolatorScaleData, ydata: InterpolatorScaleData
+) -> float:
+    """Inner function for interpolate_linear
 
     Args:
-        x_points: x values to interpolate across
-        curvature: Sigmoidal curvature.  Default produces the same behaviour as the old
-                   scale_up_function
+        x: x position (usually Time)
+        xdata: Scale data for x ('index') points
+        ydata: Scale data for y ('value') points
 
     Returns:
-        The multisigmoidal function of (x, scale_data)
+        The interpolated output value
     """
-    xranges = jnp.diff(jnp.array(x_points))
-    x_points = jnp.array(x_points)
+    idx = binary_search_ge(x, xdata.points)
 
-    xmin = x_points.min()
-    xmax = x_points.max()
-    xbounds = jnp.array([xmin, xmax])
-
-    def get_curve_at_t(t, values, ranges):
-        # idx = sum(t >= x_points) - 1
-        idx = binary_search_ge(t, x_points)
-
-        offset = t - x_points[idx]
-        relx = offset / xranges[idx]
-        return values[idx] + (relx * ranges[idx])
-
-    from jax import lax
-
-    def linear(t: float, ydata: dict):
-        # Branch on whether t is in bounds
-        bounds_state = sum(t > xbounds)
-        branches = [
-            lambda _, __, ___: ydata["min"],
-            get_curve_at_t,
-            lambda _, __, ___: ydata["max"],
-        ]
-        return lax.switch(bounds_state, branches, t, ydata["values"], ydata["ranges"])
-
-    return linear
+    offset = x - xdata.points[idx]
+    relx = offset / xdata.ranges[idx]
+    return ydata.points[idx] + (relx * ydata.ranges[idx])
 
 
-def get_scale_data(points: Array) -> dict:
+def interpolate_linear(t: float, xdata: InterpolatorScaleData, ydata: InterpolatorScaleData):
+    # Branch on whether t is in bounds
+    bounds_state = sum(t > xdata.bounds)
+    branches = [
+        lambda _, __, ___: ydata.bounds[0],
+        _get_linear_curve_at_x,
+        lambda _, __, ___: ydata.bounds[1],
+    ]
+    return lax.switch(bounds_state, branches, t, xdata, ydata)
+
+
+def get_scale_data(points: Array) -> InterpolatorScaleData:
     """
-    Precompute min, max, and ranges for a set of data to be used in a scaling function such as that
-    produced by build_sigmoidal_multicurve.  The onus is on the caller of this function to ensure
-    they are the length expected by the target callee
+    Precompute ranges (diffs) and bounds (left and right extrema) for a set of data to be used in
+    a scaling function such as that produced by build_sigmoidal_multicurve.  The onus is on the
+    caller of this function to ensure they are the length expected by the target callee
     """
     ranges = jnp.diff(points)
-    ymin = points[0]
-    ymax = points[-1]
+    lpoint = points[0]
+    rpoint = points[-1]
 
-    data = {"min": ymin, "max": ymax, "values": points, "ranges": ranges}
-
-    return data
+    # data = {"min": ymin, "max": ymax, "values": points, "ranges": ranges}
+    return InterpolatorScaleData(points, ranges, jnp.array([lpoint, rpoint]))

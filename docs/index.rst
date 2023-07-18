@@ -20,5 +20,6 @@ Contents
 
    install
    examples/index.rst
+   detailed/index.rst
    rationale.md
    api/index.rst

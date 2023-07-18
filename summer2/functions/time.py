@@ -1,18 +1,23 @@
 from typing import Union, Callable
 from numbers import Number
+from warnings import warn
 
 from computegraph import ComputeGraph
 from computegraph.types import GraphObject, Function
 import jax
 
+from numpy import ndarray
+
 from summer2.parameters import Time
 
-from .util import _as_graphobj, piecewise_constant
+from .util import enforce_graph_array, piecewise_constant
 from . import interpolate
+
+GraphArrayLike = Union[jax.Array, ndarray, list]
 
 
 def get_linear_interpolation_function(
-    x_pts: jax.Array, y_pts: Union[jax.Array, GraphObject], x_axis=Time
+    x_pts: GraphArrayLike, y_pts: GraphArrayLike, x_axis=Time
 ) -> Function:
     """Build a linear interpolator over the x and y points supplied
 
@@ -24,15 +29,16 @@ def get_linear_interpolation_function(
     Returns:
         Resultant GraphObject Function
     """
-    y_pts = _as_graphobj(y_pts)
-    yscale = Function(interpolate.get_scale_data, [y_pts])
-    curve = interpolate.build_linear_interpolator(x_pts)
+    x_pts_go = enforce_graph_array(x_pts)
+    y_pts_go = enforce_graph_array(y_pts)
+    xscale = Function(interpolate.get_scale_data, [x_pts_go])
+    yscale = Function(interpolate.get_scale_data, [y_pts_go])
 
-    return Function(curve, [x_axis, yscale])
+    return Function(interpolate.interpolate_linear, [x_axis, xscale, yscale])
 
 
 def get_sigmoidal_interpolation_function(
-    x_pts: jax.Array, y_pts: Union[jax.Array, GraphObject], x_axis=Time, curvature=16.0
+    x_pts: GraphArrayLike, y_pts: GraphArrayLike, x_axis=Time, curvature=16.0
 ) -> Function:
     """Build a piecewise sigmoidal curve interpolator over the x and y points supplied
 
@@ -46,15 +52,29 @@ def get_sigmoidal_interpolation_function(
     Returns:
         Function: _description_
     """
-    y_pts = _as_graphobj(y_pts)
-    yscale = Function(interpolate.get_scale_data, [y_pts])
-    curve = interpolate.build_sigmoidal_multicurve(x_pts, curvature=curvature)
+    x_pts_go = enforce_graph_array(x_pts)
+    y_pts_go = enforce_graph_array(y_pts)
+    xscale = Function(interpolate.get_scale_data, [x_pts_go])
+    yscale = Function(interpolate.get_scale_data, [y_pts_go])
 
-    return Function(curve, [x_axis, yscale])
+    curve = interpolate.build_sigmoidal_multicurve(curvature=curvature)
+
+    return Function(curve, [x_axis, xscale, yscale])
 
 
 def get_piecewise_scalar_function(
-    breakpoints: jax.Array, values: Union[jax.Array, GraphObject], x_axis=Time
+    breakpoints: GraphArrayLike, values: GraphArrayLike, x_axis=Time
+) -> Function:
+    warn(
+        "This method is deprecated and scheduled for removal, use get_piecewise_function instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return get_piecewise_function(breakpoints, values, x_axis)
+
+
+def get_piecewise_function(
+    breakpoints: GraphArrayLike, values: GraphArrayLike, x_axis=Time
 ) -> Function:
     """Create a Function object to be evaluated in the {x} domain, returning
     a value selected from {values}, the index of which is the x-bounds
@@ -70,8 +90,8 @@ def get_piecewise_scalar_function(
     Returns:
         The resulting wrapped Function object
     """
-    breakpoints = _as_graphobj(breakpoints)
-    values = _as_graphobj(values)
+    breakpoints = enforce_graph_array(breakpoints)
+    values = enforce_graph_array(values)
     return Function(piecewise_constant, (x_axis, breakpoints, values))
 
 
@@ -102,7 +122,7 @@ def get_time_callable(f: Function, jit_compile=True) -> Callable:
     if jit_compile:
         vmapped = jax.jit(vmapped)
 
-    def wrapped(t, parameters):
+    def wrapped(t, parameters=None):
         if isinstance(t, Number):
             return tf(t, parameters)
         else:
