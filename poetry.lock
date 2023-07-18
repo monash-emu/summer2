@@ -405,13 +405,13 @@ test = ["flake8 (==3.7.8)", "hypothesis (==3.55.3)"]
 
 [[package]]
 name = "computegraph"
-version = "0.4.2"
+version = "0.4.3"
 description = "computegraph is a tool for managing computational graphs using networkx"
 optional = false
 python-versions = ">=3.8.0"
 files = [
-    {file = "computegraph-0.4.2-py3-none-any.whl", hash = "sha256:936eaad8fe405f9bf742de5070c397277391f09d173702621c476bb0d32e55ee"},
-    {file = "computegraph-0.4.2.tar.gz", hash = "sha256:e7ba1dc3f363b76839486c387ab1e760abeecfa01dcd5c002e87fcc042ce01d0"},
+    {file = "computegraph-0.4.3-py3-none-any.whl", hash = "sha256:6f7faa61570468c85512b12af2dd97b1b245f965455e137018308c9d3bb926a3"},
+    {file = "computegraph-0.4.3.tar.gz", hash = "sha256:d81e3d2802d27bb489f8403648178fde9893f47b0efbebb16d2c24d1759a8f90"},
 ]
 
 [package.dependencies]
@@ -2833,4 +2833,4 @@ docs = ["ipykernel", "matplotlib", "nbsphinx", "recommonmark", "sphinx-rtd-theme
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.0"
-content-hash = "97519c90ff75c4ce1ecef934f2d2cb34cb6bff5c8371dc833d5fa2401da0b6a9"
+content-hash = "5ae00439e442fe9b4ba1ac4dd617e22a46ff5c87b8dfc046c9b964bc0f6a7318"
