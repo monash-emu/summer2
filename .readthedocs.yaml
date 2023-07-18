@@ -3,6 +3,11 @@ version: 2
 sphinx:
   configuration: docs/conf.py
 
+build:
+  apt_packages:
+    - graphviz 
+    - graphviz-dev
+
 python:
   version: 3.8
   install:

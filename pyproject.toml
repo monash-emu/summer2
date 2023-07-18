@@ -51,10 +51,11 @@ pytest-parallel = "^0.1.0"
 pytest-benchmark = "^3.4.1"
 isort = "^5.9.3"
 pre-commit = "^2.19.0"
+pygraphviz = "^1.10"
 
 
 [tool.poetry.extras]
-docs = ["sphinxcontrib-napoleon", "recommonmark", "nbsphinx", "sphinx_rtd_theme", "ipykernel", "matplotlib"]
+docs = ["sphinxcontrib-napoleon", "recommonmark", "nbsphinx", "sphinx_rtd_theme", "ipykernel", "matplotlib", "pygraphviz"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
