@@ -104,6 +104,8 @@ Releases are numbered using [Semantic Versioning](https://semver.org/)
   - Make full (comparment) outputs optional for jax runners
 - 1.2.8
   - Improve time varying functions (allow GraphObjects in x values)
+- 1.2.9
+  - Derived output functions matching pandas.Series functionality (rolling, diff)
 
 ## Release process
 
