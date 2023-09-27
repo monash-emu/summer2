@@ -14,7 +14,6 @@ def test_create_model():
     assert_array_equal(model.times, np.array([0, 1, 2, 3, 4, 5]))
     assert model.compartments == [Compartment("S"), Compartment("I"), Compartment("R")]
     assert model._infectious_compartments == [Compartment("I")]
-    assert_array_equal(model.initial_population, np.array([0, 0, 0]))
 
     # Times out of order
     with pytest.raises(AssertionError):

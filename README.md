@@ -106,6 +106,8 @@ Releases are numbered using [Semantic Versioning](https://semver.org/)
   - Improve time varying functions (allow GraphObjects in x values)
 - 1.2.9
   - Derived output functions matching pandas.Series functionality (rolling, diff)
+- 1.3.0
+  - Support initializing whole population via GraphObject
 
 ## Release process
 

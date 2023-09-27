@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import List, TYPE_CHECKING
 
 from jax import numpy as jnp
+from jax.core import call
 
 from summer2.parameters import get_static_param_value, is_var, Function
 from summer2.parameters.param_impl import ModelParameter
@@ -85,6 +86,13 @@ def get_calculate_initial_pop(model: CompartmentalModel):
     Returns:
         _type_: _description_
     """
+
+    if model._array_population is not None:
+
+        def calculate_initial_population(static_graph_values: dict) -> jnp.ndarray:
+            return static_graph_values["init_pop_array"]
+
+        return calculate_initial_population
 
     strat_funcs = {}
     comps = model._original_compartment_names

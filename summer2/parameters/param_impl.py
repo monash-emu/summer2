@@ -24,6 +24,12 @@ from summer2.parameters.params import (
 )
 
 
+# Capture computed values in dictionary so that
+# 'old-style' summer functions (t,cv) can use them
+def capture_kwargs(*args, **kwargs):
+    return kwargs
+
+
 class ModelParameter:
     def get_value(self, time: float, computed_values: dict, parameters: dict):
         raise NotImplementedError
@@ -223,19 +229,24 @@ def finalize_parameters(model):
 
     model._flow_key_map = {k: fnp.array(v, dtype=int) for k, v in all_flow_keys.items()}
 
-    # Initial population
-    if not hasattr(model, "_init_pop_dist"):
-        raise Exception("Model initial population must be set before finalizing")
+    if model._array_population is not None:
+        init_pop_array = get_modelparameter_from_param(model._array_population, allow_any=True)
+        register_obj_key(init_pop_array, "init_pop_array")
+    else:
+        # Initial population
+        if not hasattr(model, "_init_pop_dist"):
+            raise Exception("Model initial population must be set before finalizing")
 
-    model._init_pop_dist = get_reparameterized_dict(model._init_pop_dist)
-    register_obj_key(model._init_pop_dist, "init_pop_dist")
+        model._init_pop_dist = get_reparameterized_dict(model._init_pop_dist)
+        register_obj_key(model._init_pop_dist, "init_pop_dist")
 
     # Keep track of matrices so we can Kron them together later
     mixing_matrices = []
     # Stratifications - population split, infectiousness adjustments, mixing matrix
     for s in model._stratifications:
-        s.population_split = get_reparameterized_dict(s.population_split)
-        register_obj_key(s.population_split, f"{s.name}_pop_split")
+        if model._array_population is None:
+            s.population_split = get_reparameterized_dict(s.population_split)
+            register_obj_key(s.population_split, f"{s.name}_pop_split")
 
         for comp, adjustments in s.infectiousness_adjustments.items():
             for stratum, adjustment in adjustments.items():
@@ -276,11 +287,6 @@ def finalize_parameters(model):
     for k, v in model._computed_values_graph_dict.items():
         name = f"computed_values.{k}"
         register_obj_key(GraphObjectParameter(v), name, True)
-
-    # Capture computed values in dictionary so that
-    # 'old-style' summer functions (t,cv) can use them
-    def capture_kwargs(*args, **kwargs):
-        return kwargs
 
     cv_func = Function(capture_kwargs, kwargs=model._computed_values_graph_dict)
     cv_func.node_name = "gather_cv"

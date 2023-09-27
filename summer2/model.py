@@ -125,7 +125,6 @@ class CompartmentalModel:
         self._update_compartment_name_map()
 
         self._infectious_compartments = [Compartment(n) for n in infectious_compartments]
-        self.initial_population = np.zeros_like(self.compartments, dtype=float)
         # Keeps track of original, pre-stratified compartment names.
         self._original_compartment_names = [Compartment.deserialize(n) for n in compartments]
         # Keeps track of Stratifications that have been applied.
@@ -176,6 +175,8 @@ class CompartmentalModel:
 
         self._default_parameters = None
 
+        self._array_population = None
+
     def _update_compartment_indices(self):
         """
         Update the mapping of compartment name to idx for quicker lookups.
@@ -193,9 +194,24 @@ class CompartmentalModel:
         error_msg = "Cannot make changes to model that is already finalized"
         assert not self._finalized, error_msg
 
+    def init_population_with_graphobject(self, init_pop):
+        """Set the initial population with a graphobject (Function, Data or array)
+        The output of this object must be an array matching the model's final compartments,
+        and therefore no further stratification is possible after this function is called
+
+        Args:
+            init_pop: GraphObject or array type
+        """
+        self._init_pop_dist = {}
+        self._array_population = init_pop
+        self.finalize()
+
     def set_initial_population(self, distribution: Dict[str, float], force=False):
         """
         Sets the initial population of the model, which is zero by default.
+        Use this method before strafication to determine population by stratification
+        split, or alternatively use init_population_with_graphobject to set the entire
+        population at once
 
         Args:
             distribution: A map of populations to be assigned to compartments.
@@ -219,6 +235,14 @@ class CompartmentalModel:
         for idx, comp in enumerate(self._original_compartment_names):
             if comp not in self._init_pop_dist:
                 self._init_pop_dist[comp] = 0.0
+
+    def get_initial_population(self, parameters: dict = None):
+        if parameters is None:
+            parameters = {}
+        runner = self.get_runner(parameters)
+        keys = [str(c) for c in self.compartments]
+        values = runner.impl_dict["one_step"](parameters).initial_population
+        return pd.Series(index=keys, data=values)
 
     def finalize(self):
         if not self._finalized:
