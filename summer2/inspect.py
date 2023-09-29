@@ -4,7 +4,9 @@ The main entry point for this is the ModelProbe class
 """
 
 import re
-from typing import Iterable, Set, List
+from typing import Iterable, Set, List, Callable
+
+import itertools
 
 import networkx as nx
 import numpy as np
@@ -14,7 +16,7 @@ from summer2.compartment import Compartment
 from summer2.flows import BaseFlow
 
 
-def query_compartments(m: CompartmentalModel, query: dict = None, tags: List = None, as_idx=False):
+def _query_compartments(m: CompartmentalModel, query: dict = None, tags: List = None, as_idx=False):
     query = query or {}
     tags = tags or []
     if isinstance(tags, str):
@@ -46,6 +48,78 @@ def query_compartments(m: CompartmentalModel, query: dict = None, tags: List = N
                 for c in m.compartments
                 if c._has_strata(_strata) and all([t in c.tags for t in tags])
             ]
+
+
+def query_compartments(model: CompartmentalModel, query: dict, tags: list = None, as_idx=False):
+    query = query or {}
+
+    tags = tags or []
+    if isinstance(tags, str):
+        tags = [tags]
+
+    if "name" in query:
+        query = query.copy()
+        name = query.pop("name")
+
+        if isinstance(name, str):
+            compartments = model._compartment_name_map[name]
+        elif isinstance(name, Callable):
+            match_lists = [
+                model._compartment_name_map[n] for n in model._original_compartment_names if name(n)
+            ]
+            compartments = list(itertools.chain.from_iterable(match_lists))
+        elif isinstance(name, Iterable):
+            # FIXME: Should do better type checking here
+            # For now we assume we have some kind of iterable (ie a 'list' of names)
+            match_lists = [model._compartment_name_map[n] for n in name]
+            compartments = list(itertools.chain.from_iterable(match_lists))
+        else:
+            raise TypeError()
+    else:
+        compartments = model.compartments
+
+    def get_equals(x):
+        def equals(y):
+            return y == x
+
+        return equals
+
+    def get_isin(x):
+        def isin(y):
+            return y in x
+
+        return isin
+
+    actual_q = {}
+    for k, v in query.items():
+        if isinstance(v, Callable):
+            actual_q[k] = v
+        elif isinstance(v, str):
+            actual_q[k] = get_equals(v)
+        elif isinstance(v, Iterable):
+            actual_q[k] = get_isin(v)
+        else:
+            raise TypeError()
+
+    matched_comps = []
+    for c in compartments:
+        cur_match = True
+        for stratification, qfunc in actual_q.items():
+            if stratification in c.strata:
+                cur_match = cur_match and qfunc(c.strata[stratification])
+            else:
+                cur_match = False
+
+        if cur_match:
+            matched_comps.append(c)
+
+    if len(tags):
+        matched_comps = [c for c in matched_comps if all([t in c.tags for t in tags])]
+
+    if as_idx:
+        return np.array([c.idx for c in matched_comps], dtype=int)
+    else:
+        return matched_comps
 
 
 def query_flows(
@@ -134,7 +208,6 @@ class ModelProbe:
         return query_flows(self.model, flow_name, source, dest, tags)
 
     def get_model_subset(self, comp_query: dict = None, flow_query: dict = None):
-
         comp_query = comp_query or {}
         flow_query = flow_query or {}
 
@@ -147,7 +220,6 @@ class ModelProbe:
         return matched_comps.intersection(set(comps)), matched_flows.intersection(set(flows))
 
     def draw_flow_graph(self, comp_query: dict = None, flow_query: dict = None):
-
         # FIXME: Not yet working - need to update with new computegraph methods
 
         raise NotImplementedError()

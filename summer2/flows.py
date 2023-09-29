@@ -10,7 +10,7 @@ import numpy as np
 from summer2.adjust import BaseAdjustment, FlowParam, Multiply
 from summer2.compartment import Compartment
 from summer2.parameters.param_impl import ModelParameter
-from summer2.stratification import Stratification
+from summer2.stratification import Adjustment, Stratification
 
 
 class WeightType:
@@ -505,6 +505,14 @@ class AbsoluteFlow(BaseTransitionFlow):
     ) -> float:
         parameter_value = self.get_weight_value(time, computed_values, parameters)
         return parameter_value
+
+    def stratify(self, strat: Stratification) -> List[BaseFlow]:
+        new_flows = super().stratify(strat)
+        if len(new_flows) > 1.0:
+            adj_factor = 1.0 / len(new_flows)
+            for f in new_flows:
+                f.adjustments.append(Multiply(adj_factor))
+        return new_flows
 
 
 class BaseInfectionFlow(BaseTransitionFlow):

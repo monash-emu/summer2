@@ -204,7 +204,6 @@ class CompartmentalModel:
         """
         self._init_pop_dist = {}
         self._array_population = init_pop
-        self.finalize()
 
     def set_initial_population(self, distribution: Dict[str, float], force=False):
         """
@@ -714,8 +713,14 @@ class CompartmentalModel:
         self._compartment_name_map = name_map
 
     def get_matching_compartments(self, name: str, strata: dict):
+        return self.query_compartments({"name": name} | strata)
         if isinstance(name, str):
             name_query = self._compartment_name_map[name]
+        if isinstance(name, Callable):
+            match_lists = [
+                self._compartment_name_map[n] for n in self._original_compartment_names if name(n)
+            ]
+            name_query = list(itertools.chain.from_iterable(match_lists))
         else:
             # FIXME: Should do better type checking here
             # For now we assume we have some kind of iterable (ie a 'list' of names)
@@ -751,6 +756,8 @@ class CompartmentalModel:
             strat: The stratification to apply.
 
         """
+
+        assert strat.name not in self.stratifications, "Stratification already exists"
 
         self._assert_not_finalized()
         # Enable/disable runtime assertions for strat
@@ -1106,6 +1113,7 @@ class CompartmentalModel:
                 so that they're more representative of the changes in compartment sizes.
                 Defaults to ``False``.
         """
+        self._assert_not_finalized()
         source_strata = source_strata or {}
         dest_strata = dest_strata or {}
 
@@ -1145,6 +1153,7 @@ class CompartmentalModel:
             strata (optional): A whitelist of strata to filter the compartments.
             save_results (optional): Whether to save or discard the results.
         """
+        self._assert_not_finalized()
         strata = strata or {}
 
         if isinstance(compartments, str):
@@ -1186,6 +1195,7 @@ class CompartmentalModel:
             save_results (optional): Whether to save or discard the results.
 
         """
+        self._assert_not_finalized()
         msg = f"A derived output named {name} already exists."
         assert name not in self._derived_output_requests, msg
 
@@ -1223,6 +1233,7 @@ class CompartmentalModel:
             save_results (optional): Whether to save or discard the results.
 
         """
+        self._assert_not_finalized()
         msg = f"A derived output named {name} already exists."
         assert name not in self._derived_output_requests, msg
         source = _resolve_source(source)
@@ -1250,6 +1261,7 @@ class CompartmentalModel:
 
         """
 
+        self._assert_not_finalized()
         msg = f"A derived output named {name} already exists."
         assert name not in self._derived_output_requests, msg
         for k, v in func.kwargs.items():
@@ -1279,6 +1291,7 @@ class CompartmentalModel:
         Returns:
             The resulting DerivedOutput
         """
+        self._assert_not_finalized()
         msg = f"A derived output named {name} already exists."
         assert name not in self._derived_output_requests, msg
 
@@ -1301,6 +1314,7 @@ class CompartmentalModel:
         Returns:
             The resulting DerivedOutput
         """
+        self._assert_not_finalized()
         if name in self._computed_values_graph_dict:
             if self._computed_values_graph_dict[name] is not f:
                 raise KeyError(f"Name {name} already used to track another function", name)

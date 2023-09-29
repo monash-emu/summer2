@@ -252,6 +252,19 @@ def build_get_flow_rates(runner, ts_graph_func, get_infectious_multipliers=None,
 def build_get_compartment_rates(runner):
     accum_maps = get_accumulation_maps(runner)
 
+    application_matrix = np.zeros((len(runner.model.compartments), len(runner.model.flows)))
+    for f in runner._pos_flow_map:
+        t, s = f
+        application_matrix[s, t] += 1.0
+
+    for f in runner._neg_flow_map:
+        t, s = f
+        application_matrix[s, t] -= 1.0
+
+    from jax.experimental import sparse
+
+    sparse_app_mat = sparse.BCOO.fromdense(application_matrix)
+
     def get_compartment_rates(compartment_values, flow_rates):
         comp_rates = jnp.zeros_like(compartment_values)
 
@@ -262,7 +275,10 @@ def build_get_compartment_rates(runner):
 
         return comp_rates
 
-    return get_compartment_rates
+    def get_compartment_rates_mat(compartment_values, flow_rates):
+        return sparse_app_mat @ flow_rates
+
+    return get_compartment_rates_mat
 
 
 def build_get_rates(runner, ts_graph_func):
@@ -646,6 +662,20 @@ def build_run_model(
         }
         return StepResults(**res)
 
+    def get_model_data(parameters: dict = None):
+        static_graph_vals = static_graph_func(parameters=parameters)
+        static_flow_weights = jnp.zeros(len(runner.model.flows))
+        for k, v in static_flow_map.items():
+            val = static_graph_vals[k]
+            static_flow_weights = static_flow_weights.at[v].set(val)
+
+        compartment_infectiousness = get_compartment_infectiousness(static_graph_vals)
+        model_data = {
+            "compartment_infectiousness": compartment_infectiousness,
+            "static_flow_weights": static_flow_weights,
+        }
+        return model_data
+
     runner_dict = {
         "get_rates": get_rates,
         "get_flow_rates": get_flow_rates,
@@ -661,6 +691,7 @@ def build_run_model(
         "one_step": one_step,  # Single (euler) step run function
         "derived_outputs_cg": do_cg,  # DerivedOutputs computegraph
         "get_rates_debug": rates_funcs["get_rates_debug"],
+        "get_model_data": get_model_data,
     }
 
     return run_model, runner_dict
