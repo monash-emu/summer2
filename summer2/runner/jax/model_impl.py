@@ -496,6 +496,48 @@ def build_run_model(
                 get_comp_rates, initial_population, times, static_graph_vals, model_data
             )
 
+    elif solver == "diffrax":
+        import diffrax
+
+        if solver_args is None:
+            solver_args = {}
+
+        def step_f(t, y, args):
+            comp_vals = y
+            static_graph_vals, model_data = args
+            d_y = get_comp_rates(comp_vals, t, static_graph_vals, model_data)
+            return d_y
+
+        def get_ode_solution(initial_population, times, static_graph_vals, model_data):
+            controller_args = dict(rtol=1e-3, atol=1e-6, dtmax=1.0)
+            if "PIDController" in solver_args:
+                controller_args = controller_args | solver_args["PIDController"]
+
+            solve_args = {"solver": diffrax.Tsit5(), "dt0": 1.0}
+            if "diffeqsolve" in solver_args:
+                solve_args = solve_args | solver_args["diffeqsolve"]
+
+            term = diffrax.ODETerm(step_f)
+            # solver = diffrax.Tsit5()
+            t0 = times[0]
+            t1 = times[-1]
+
+            y0 = initial_population
+            args = (static_graph_vals, model_data)
+            saveat = diffrax.SaveAt(ts=times)
+            controller = diffrax.PIDController(**controller_args)
+            sol = diffrax.diffeqsolve(
+                terms=term,
+                t0=t0,
+                t1=t1,
+                y0=y0,
+                args=args,
+                saveat=saveat,
+                stepsize_controller=controller,
+                **solve_args,
+            )
+            return sol.ys
+
     else:
         raise NotImplementedError("Incompatible SolverType for Jax runner", solver)
 
