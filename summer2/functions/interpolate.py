@@ -69,7 +69,7 @@ def build_sigmoidal_multicurve(curvature=16.0) -> callable:
     sig = make_norm_sigmoid(curvature)
 
     def _get_sigmoidal_curve_at_x(x, xdata, ydata):
-        # idx = (x >= xdata.points).sum() - 1  # - 1
+        #idx = (x >= xdata.points).sum() - 1  # - 1
         idx = binary_search_ge(x, xdata.points)
 
         offset = x - xdata.points[idx]

@@ -41,13 +41,13 @@ def enforce_graph_array(x) -> GraphObject:
 
 
 def piecewise_function(x, breakpoints, functions):
-    index = binary_search_ge(x, breakpoints) + 1
+    index = (x>=breakpoints).sum()
     return lax.switch(index, functions, x)
 
 
 # All
 def piecewise_constant(x, breakpoints, values):
-    index = binary_search_ge(x, breakpoints) + 1
+    index = (x>=breakpoints).sum()
     return values[index]
 
 
