@@ -467,10 +467,9 @@ def build_run_model(
 
     if solver == SolverType.ODE_INT:
         if solver_args is None:
-            # Some sensible defaults; faster than
-            # the odeint defaults,
-            # but accurate enough for our tests
-            solver_args = SolverArgs.DEFAULT
+            solver_args = {}
+
+        solver_args = SolverArgs.DEFAULT | solver_args
 
         def get_ode_solution(initial_population, times, static_graph_vals, model_data):
             return ode.odeint(
