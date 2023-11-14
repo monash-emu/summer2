@@ -41,13 +41,13 @@ def enforce_graph_array(x) -> GraphObject:
 
 
 def piecewise_function(x, breakpoints, functions):
-    index = binary_search_ge(x, breakpoints) + 1
+    index = binary_search_sum_ge(x, breakpoints)
     return lax.switch(index, functions, x)
 
 
 # All
 def piecewise_constant(x, breakpoints, values):
-    index = binary_search_ge(x, breakpoints) + 1
+    index = binary_search_sum_ge(x, breakpoints)
     return values[index]
 
 
@@ -57,20 +57,17 @@ def windowed_constant(x: float, value: float, window_start: float, window_length
     return piecewise_constant(x, breakpoints, values)
 
 
-def binary_search_ge(x: float, points: jax.Array) -> int:
-    """Find the lowest index of the value within points
-    to which x is greater than or equal to, using a binary
-    search.
-
-    A value of x lower than min(points) will return 0, and higher
-    than max(points) will return len(points)-1
+def binary_search_sum_ge(x: float, points: jax.Array) -> int:
+    """Return the equivalent of
+        (x>=points).sum()
+    using a binary search
 
     Args:
         x: Value to find
         points: Array to search
 
     Returns:
-        The index value satisying the above conditions
+        (x >= points).sum()
     """
 
     def cond(state):
@@ -79,14 +76,14 @@ def binary_search_ge(x: float, points: jax.Array) -> int:
 
     def body(state):
         low, high = state
-        midpoint = (0.5 * (low + high)).astype(int)
+        midpoint = ((0.5 * (low + high))).astype(int)
         update_upper = x < points[midpoint]
         low = jnp.where(update_upper, low, midpoint)
         high = jnp.where(update_upper, midpoint, high)
         return (low, high)
 
-    low, high = lax.while_loop(cond, body, (0, len(points) - 1))
-    return lax.cond(x < points[high], lambda: low, lambda: high)
+    low, high = lax.while_loop(cond, body, (-1, len(points) - 1))
+    return lax.cond(x < points[high], lambda: low, lambda: high) + 1
 
 
 def capture_dict(**kwargs) -> Function:

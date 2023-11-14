@@ -9,7 +9,7 @@ with build_sigmoidal_multicurve producing a dynamic (parameterizable) version of
 
 from jax import Array, lax, numpy as jnp, lax
 
-from .util import binary_search_ge
+from .util import binary_search_sum_ge
 from collections import namedtuple
 
 # Define datatypes used within interpolation functions
@@ -69,8 +69,7 @@ def build_sigmoidal_multicurve(curvature=16.0) -> callable:
     sig = make_norm_sigmoid(curvature)
 
     def _get_sigmoidal_curve_at_x(x, xdata, ydata):
-        # idx = (x >= xdata.points).sum() - 1  # - 1
-        idx = binary_search_ge(x, xdata.points)
+        idx = binary_search_sum_ge(x, xdata.points) - 1
 
         offset = x - xdata.points[idx]
         relx = offset / xdata.ranges[idx]
@@ -108,7 +107,7 @@ def _get_linear_curve_at_x(
     Returns:
         The interpolated output value
     """
-    idx = binary_search_ge(x, xdata.points)
+    idx = binary_search_sum_ge(x, xdata.points) - 1
 
     offset = x - xdata.points[idx]
     relx = offset / xdata.ranges[idx]

@@ -108,6 +108,12 @@ Releases are numbered using [Semantic Versioning](https://semver.org/)
   - Derived output functions matching pandas.Series functionality (rolling, diff)
 - 1.3.0
   - Support initializing whole population via GraphObject
+- 1.3.1
+  - Enforce jax minimum version in requirements
+- 1.3.2
+  - Fix parameter bug in test models
+- 1.3.3
+  - Fix issue with binary search for piecewise functions
 
 ## Release process
 
