@@ -114,6 +114,8 @@ Releases are numbered using [Semantic Versioning](https://semver.org/)
   - Fix parameter bug in test models
 - 1.3.3
   - Fix issue with binary search for piecewise functions
+- 1.3.4
+  - Update import in ode.py for changed jax API
 
 ## Release process
 

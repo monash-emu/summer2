@@ -44,7 +44,11 @@ except:
 from jax._src.util import safe_map, safe_zip
 from jax.flatten_util import ravel_pytree
 from jax.tree_util import tree_leaves, tree_map
-from jax import linear_util as lu
+# 0.4.16
+try:
+    from jax import linear_util as lu
+except:
+    from jax.extend import linear_util as lu
 
 map = safe_map
 zip = safe_zip
