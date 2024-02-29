@@ -13,7 +13,7 @@ keywords = [
     "infectious",
 ]
 description = "Summer is a compartmental disease modelling framework, written in Python. It provides a high-level API to build and run models."
-authors = ["James Trauer <james.trauer@monash.edu>", "David Shipman <dshipman@gmail.com>", "Matthew Segal <mattdsegal@gmail.com>"]
+authors = ["David Shipman <dshipman@gmail.com>", "James Trauer <james.trauer@monash.edu>", "Romain Ragonnet <romain.ragonnet@monash.edu>", "Matthew Segal <mattdsegal@gmail.com>"]
 packages = [
     {include = "summer2"}
 ]
