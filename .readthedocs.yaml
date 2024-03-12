@@ -9,7 +9,7 @@ build:
     - graphviz 
     - graphviz-dev
   tools:
-    python: "3.9"
+    python: "3.10"
 
 python:
   install:
