@@ -9,7 +9,7 @@ build:
     - graphviz 
     - graphviz-dev
   tools:
-    python: "3.8"
+    python: 3.8
 
 python:
   version: 3.8
