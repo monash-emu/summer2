@@ -32,7 +32,7 @@ author = "James Trauer, David Shipman, Matthew Segal"
 extensions = [
     "sphinx_rtd_theme",
     "recommonmark",
-    "sphinxcontrib.napoleon",
+    "sphinx.exts.napolean",
     "nbsphinx",
 ]
 
