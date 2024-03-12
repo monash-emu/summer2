@@ -9,10 +9,10 @@ build:
     - graphviz 
     - graphviz-dev
   tools:
-    python: 3.8
+    python: "3.10"
 
 python:
-  version: 3.8
+  version: 3.10
   install:
     - method: pip
       path: .
