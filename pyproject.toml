@@ -40,7 +40,7 @@ pygraphviz = {version = "^1.10", optional = true}
 pytest = "^6.2.5"
 black = "^20.8b0"
 matplotlib = ">=3.4.3"
-Sphinx = "^3.5.2"
+Sphinx = "^7.2.0"
 sphinx-rtd-theme = "^0.5.1"
 recommonmark = "^0.7.1"
 sphinxcontrib-napoleon = "^0.7"
