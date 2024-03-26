@@ -116,6 +116,8 @@ Releases are numbered using [Semantic Versioning](https://semver.org/)
   - Fix issue with binary search for piecewise functions
 - 1.3.4
   - Update import in ode.py for changed jax API
+- 1.3.5
+  - Force specific jax (0.4.24) to stop breaking changes
 
 ## Release process
 
